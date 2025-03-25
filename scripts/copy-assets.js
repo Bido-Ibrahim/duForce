@@ -1,9 +1,17 @@
 const fs = require('fs-extra');
+const path = require('path');
 
-// Remove the 'dist' folder
-//fs.removeSync('dist');
+async function copyAssets() {
+  try {
+    // Copy Pixi.js to dist folder
+    await fs.copy(
+      path.resolve(__dirname, '../node_modules/pixi.js/dist'),
+      path.resolve(__dirname, '../dist/pixi.js')
+    );
+    console.log('Pixi.js assets copied successfully');
+  } catch (err) {
+    console.error('Error copying assets:', err);
+  }
+}
 
-// Copy assets to 'dist/assets'
-fs.copySync('./assets', './dist/assets');
-
-console.log('Assets copied successfully');
+copyAssets();
