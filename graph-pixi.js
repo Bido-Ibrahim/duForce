@@ -6,6 +6,7 @@ import { bfsFromNode } from "graphology-traversal";
 import { dijkstra } from "graphology-shortest-path";
 import Graph from "graphology";
 import VariableTree from "./tree.js";
+import Fuse from 'fuse.js'
 
 export default async function ForceGraph(
   {
@@ -1672,9 +1673,13 @@ export default async function ForceGraph(
 
     // Function to filter suggestions based on user input
     function filterSuggestions(input) {
-      return variableData.filter((item) => {
-        return item.NAME.toLowerCase().includes(input.toLowerCase()) || (item.DEFINITION ? item.DEFINITION.toLowerCase().includes(input.toLowerCase()) : false);
-      });
+      const fuseOptions = {keys: ["NAME","DEFINITION"], threshold:0.4};
+      const fuse = new Fuse(variableData, fuseOptions);
+      const result = fuse.search(input);
+     return result.map((m) => m.item);
+     // return variableData.filter((item) => {
+     //   return item.NAME.toLowerCase().includes(input.toLowerCase()) || (item.DEFINITION ? item.DEFINITION.toLowerCase().includes(input.toLowerCase()) : false);
+    //  });
     }
 
     // Function to update the suggestions dropdown
