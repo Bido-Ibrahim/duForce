@@ -1,14 +1,5 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
-export default defineConfig(({ command, mode }) => {
-  const isProduction = mode === 'production';
-  const base = isProduction ? '/duForce/' : '/';
-
-  return {
-    base,
-    // Add any other Vite configurations you might need
-    build: {
-      outDir: 'dist',
-    },
-  };
+export default defineConfig({
+  base: "/duForce/", // This should match your repo name
 });
