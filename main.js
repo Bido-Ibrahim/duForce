@@ -11,7 +11,7 @@ async function getData() {
     // };
 
     //const [response1, response2] = await Promise.all([fetch("/api/nodes", params), fetch("/api/edges", params)]);
-    const [response1, response2] = await Promise.all([fetch("/assets/nodes.json"), fetch("/assets/edges.json")]);
+    const [response1, response2] = await Promise.all([fetch("./assets/nodes.json"), fetch("/assets/edges.json")]);
 
     if (!response1.ok || !response2.ok) {
       throw new Error(`HTTP error! Status: ${response1.status} ${response2.status}`);
