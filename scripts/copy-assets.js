@@ -7,6 +7,7 @@ async function copyAssets() {
     await fs.copy(
       path.resolve(__dirname, '../node_modules/pixi.js/dist'),
       path.resolve(__dirname, '../dist/pixi.js')
+    path.resolve(__dirname, '../dist/pixi-viewport.js')
     );
     console.log('Pixi.js assets copied successfully');
   } catch (err) {
