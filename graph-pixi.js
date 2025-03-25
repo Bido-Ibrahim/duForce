@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import * as PIXI from 'pixi.js'
 //import { Cull } from "@pixi-essentials/cull";
 import { Viewport } from "pixi-viewport";
 import * as d3 from "d3";
