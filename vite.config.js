@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   // Set the base path for GitHub Pages (replace with your repo name)
-  base: '/your-repo-name/',
+  base: '/duForce/',
 
   resolve: {
     alias: {
