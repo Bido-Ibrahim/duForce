@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 //import { Cull } from "@pixi-essentials/cull";
-import { Viewport } from "pixi-viewport";
+import { Viewport } from 'https://unpkg.com/pixi-viewport@5.0.1/dist/viewport.mjs';
 import * as d3 from "d3";
 import { bfsFromNode } from "graphology-traversal";
 import { dijkstra } from "graphology-shortest-path";
