@@ -1,6 +1,7 @@
 {
   "name": "dupardee",
   "version": "1.0.0",
+  "homepage": "https://bmpms.github.io/duForce",
   "description": "",
   "scripts": {
     "dev": "vite",
