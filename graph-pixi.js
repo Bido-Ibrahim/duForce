@@ -773,6 +773,7 @@ export default async function ForceGraph(
     // Update coordinates of all PIXI elements on screen based on force simulation calculations
     function updatePositions() {
 
+      d3.select(".animation-container").style("display","none");
       for (let i = 0; i < showEle.nodes.length; i++) {
         let node = showEle.nodes[i];
         const nodeGfx = nodeDataToNodeGfx.get(node);
@@ -1047,6 +1048,7 @@ export default async function ForceGraph(
     }
 
     updateURL(showEle.nodes.map((node) => node.NAME).join("-"));
+    d3.select(".animation-container").style("display","flex");
     update(); // re-render graph with updated array of nodes and links
   }
 

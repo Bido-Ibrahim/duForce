@@ -334,6 +334,81 @@
         top: 0;
         left: 0;
       }
+
+      .animation-container {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 30px;
+          padding: 20px;
+      }
+
+      .loading-animation {
+          text-align: center;
+      }
+
+      /* Nodes Pulsing Animation */
+      .nodes-pulse {
+          width: 250px;
+          height: 200px;
+          position: relative;
+      }
+
+      .nodes-pulse .node {
+          position: absolute;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          z-index: 10;
+          animation: pulse 1.5s infinite ease-in-out;
+      }
+
+      .nodes-pulse .link {
+          position: absolute;
+          height: 0.75px;
+          z-index: 5;
+          transform-origin: left;
+      }
+
+      .link{
+          background-color: #A0A0A0;
+      }
+
+      .nodes-pulse .node:nth-child(1) {
+          background-color: #418BFC;
+          top: 20px;
+          left: 70px;
+          animation-delay: 0s;
+      }
+      .nodes-pulse .node:nth-child(2) {
+          background-color: #46BCC8;
+          top: 70px;
+          left: 40px;
+          animation-delay: 0.3s;
+      }
+      .nodes-pulse .node:nth-child(3) {
+          background-color: #EB5E68;
+          top: 50px;
+          right: 50px;
+          animation-delay: 0.6s;
+      }
+      .nodes-pulse .node:nth-child(4) {
+          background-color: #BA6DE4;
+          bottom: 30px;
+          left: 100px;
+          animation-delay: 0.9s;
+      }
+      .nodes-pulse .node:nth-child(5) {
+          background-color: #D6AB1B;
+          bottom: 60px;
+          right: 70px;
+          animation-delay: 1.2s;
+      }
+
+      @keyframes pulse {
+          0%, 100% { transform: scale(1);  }
+          50% { transform: scale(1.2);  }
+      }
     </style>
   </head>
   <body>
@@ -343,6 +418,47 @@
     <div class="button-panel" id="buttonPanel"></div>
 
     <div id="app"></div>
+
+    <div class="animation-container">
+      <div class="loading-animation">
+        <h3>Nodes Pulsing</h3>
+        <div class="nodes-pulse">
+          <div class="node"></div>
+          <div class="node"></div>
+          <div class="node"></div>
+          <div class="node"></div>
+          <div class="node"></div>
+
+          <div class="link" style="
+                    top: 45px;
+                    left: 80px;
+                    width: 50px;
+                    transform: rotate(120deg);
+                "></div>
+
+          <div class="link" style="
+                    top: 45px;
+                    left: 85px;
+                    width: 100px;
+                    transform: rotate(75deg);
+                "></div>
+
+          <div class="link" style="
+                    top: 85px;
+                    left: 65px;
+                    width: 100px;
+                    transform: rotate(22deg);
+                "></div>
+
+          <div class="link" style="
+                    top: 55px;
+                    left: 188px;
+                    width: 70px;
+                    transform: rotate(108deg);
+                "></div>
+        </div>
+      </div>
+    </div>
 
     <div id="search-tab-container">
       <div id="search-container">
