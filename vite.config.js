@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/duForce/", // This should match your repo name
+  base: "/duForce/",
+  optimizeDeps: {
+    include: ["pixi.js"], // Ensure PixiJS is optimized properly
+  },
 });
