@@ -253,6 +253,7 @@ export default async function ForceGraph(
 
   simulation.stop();
 
+
   // Create PIXI application
   const app = new PIXI.Application({
     width,
@@ -439,7 +440,7 @@ export default async function ForceGraph(
 
     /*
      * Create a map of node data and the node graphics.
-     * - Create a node container to hold the grahics
+     * - Create a node container to hold the graphics
      * - Create circle, border and text Sprites using the created texture
      * - Add the sprites to the container
      * - Add event listeners to the container to handle interactions
@@ -469,37 +470,39 @@ export default async function ForceGraph(
           nodeGfx.visible = showNode(singleNodeIDs, nodeData.id) ? false : true;
 
           // Because the click event still gets triggered after mouse is released from a node drag (pointerup event), create 2 types of pointerdown events to prevent interference
-          nodeGfx.on("pointerdown", function (event) {
-            //if (searched) return;
-            clickCount++;
+          nodeGfx.on("pointerdown", (event) => {
             const node = nodeGfxToNodeData.get(event.currentTarget);
-            if (clickCount === 1) {
-              // Different types of click actions based on button activated
-              if (showShortestPath) {
-                timer = setTimeout(function () {
-                  clickNodeForShortestPath(node, graph);
-                  clickCount = 0;
-                }, 300);
-              } else if (showNeighbors) {
-                timer = setTimeout(function () {
-                  clickedNodes = [node]
-                  clickNodeForNearestNeighbor(node, graph);
-                  clickCount = 0;
-                }, 300);
-              } else {
-                dragNode(node);
-                // reset the clickCount if the time between first and second click exceeds 300ms.
-                timer = setTimeout(function () {
-                  clickCount = 0;
-                }, 300);
-              }
-              // disable expand/collapse feature if either nearest neighbour or shortest path button is activated
-            } else if (clickCount === 2 && !showShortestPath && !showNeighbors) {
-              clearTimeout(timer);
-              dblclickNode(node);
-              clickCount = 0;
+            node.pointerdown = true;
+            node.highlighted = !node.highlighted;
+          })
+          nodeGfx.on("pointermove", (event) => {
+            const node = nodeGfxToNodeData.get(event.currentTarget);
+            if(node.pointerdown){
+              // need to find links
+              viewport.pause = true;
+              const actualPoints = viewport.toWorld(event.global);
+              event.currentTarget.x = actualPoints.x;
+              event.currentTarget.y = actualPoints.y;
+              const fakeNode = {radius: node.radius, x: actualPoints.x, y: actualPoints.y};
+              graph.forEachEdge(node.id, (edgeId, attributes, source, target) => {
+                const link = showEle.links.find((f) => f.source.id === source && f.target.id === target);
+                const chartLink = linkDataToLinkGfx.get(link);
+                const sourceNode = source === node.id ? fakeNode : showEle.nodes.find((f) => f.id === source);
+                const targetNode = target === node.id ? fakeNode : showEle.nodes.find((f) => f.id === target);
+                updateLink(chartLink, sourceNode, targetNode)
+              });
+
             }
-          });
+          })
+          nodeGfx.on("pointerup", (event) => {
+            const node = nodeGfxToNodeData.get(event.currentTarget);
+            node.pointerdown = false;
+            if(parseInt(node.x) !== parseInt(event.currentTarget.x)){
+              node.x = event.currentTarget.x;
+              node.y = event.currentTarget.y;
+              updatePositions();
+            }
+          })
           nodeGfx.on("mouseover", (event) => updateTooltip(nodeGfxToNodeData.get(event.currentTarget)));
           nodeGfx.on("mouseout", () => tooltip.style("visibility", "hidden"));
 
@@ -625,13 +628,14 @@ export default async function ForceGraph(
       simulation.nodes(showEle.nodes).force("link").links(showEle.links);
       simulation.alphaTarget(0.1).restart();
       simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
+      simulation.stop();
     //  simulation
      //   .alphaTarget(0.2)
      //   .alphaDecay(expandedAll ? 0.5 : 0.3) // increase alphaDecay value to cool down a graph more quickly
      //   .restart();
 
       //simulation.on("tick", () => updatePositions());
-      updatePositions();
+      updatePositions(true);
     } else {
       console.log("run static graph layout");
       simulation.force("charge", d3.forceManyBody().strength(expandedAll ? -100 : -250));
@@ -640,8 +644,8 @@ export default async function ForceGraph(
       simulation.alphaTarget(0.1).restart();
 
       simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
-
-      updatePositions();
+      simulation.stop();
+      updatePositions(true);
     }
 
     prevNodes = showEle.nodes
@@ -770,19 +774,45 @@ export default async function ForceGraph(
       }
     });
 
-    // Update coordinates of all PIXI elements on screen based on force simulation calculations
-    function updatePositions() {
+    function updateLink (linkGfx, sourceNodeData, targetNodeData) {
+      linkGfx.x = sourceNodeData.x;
+      linkGfx.y = sourceNodeData.y;
+      linkGfx.rotation = Math.atan2(targetNodeData.y - sourceNodeData.y, targetNodeData.x - sourceNodeData.x);
 
+       const line = linkGfx.getChildByName("LINE");
+       const lineLength = Math.max(Math.sqrt((targetNodeData.x - sourceNodeData.x) ** 2 + (targetNodeData.y - sourceNodeData.y) ** 2) - sourceNodeData.radius - targetNodeData.radius, 0);
+       line.width = lineLength;
+    }
+    // Update coordinates of all PIXI elements on screen based on force simulation calculations
+    function updatePositions(zoomToBounds) {
+
+      const nodeBounds = {x: [0,0],y:[0,0]};
       d3.select(".animation-container").style("display","none");
       for (let i = 0; i < showEle.nodes.length; i++) {
         let node = showEle.nodes[i];
         const nodeGfx = nodeDataToNodeGfx.get(node);
         const labelGfx = nodeDataToLabelGfx.get(node);
 
+        nodeGfx.highlighted = node.highlighted ? node.highlighted : false;
         nodeGfx.x = node.x;
         nodeGfx.y = node.y;
         labelGfx.x = node.x;
         labelGfx.y = node.y;
+        if(node.x < nodeBounds.x[0]){
+          nodeBounds.x[0] = node.x;
+        }
+        if(node.x > nodeBounds.x[1]){
+          nodeBounds.x[1] = node.x;
+        }
+        if(node.y < nodeBounds.y[0]){
+          nodeBounds.y[0] = node.y;
+        }
+        if(node.y > nodeBounds.y[1]){
+          nodeBounds.y[1] = node.y;
+        }
+      }
+      if(zoomToBounds){
+        zoomToFit(app, viewport, nodeBounds);
       }
 
       for (let i = 0; i < showEle.links.length; i++) {
@@ -790,14 +820,7 @@ export default async function ForceGraph(
         const sourceNodeData = showEle.nodes.find((n) => n.id === getTargetId(link));
         const targetNodeData = showEle.nodes.find((n) => n.id === getSourceId(link));
         const linkGfx = linkDataToLinkGfx.get(link);
-
-        linkGfx.x = sourceNodeData.x;
-        linkGfx.y = sourceNodeData.y;
-        linkGfx.rotation = Math.atan2(targetNodeData.y - sourceNodeData.y, targetNodeData.x - sourceNodeData.x);
-
-        const line = linkGfx.getChildByName("LINE");
-        const lineLength = Math.max(Math.sqrt((targetNodeData.x - sourceNodeData.x) ** 2 + (targetNodeData.y - sourceNodeData.y) ** 2) - sourceNodeData.radius - targetNodeData.radius, 0);
-        line.width = lineLength;
+        updateLink (linkGfx, sourceNodeData, targetNodeData)
       }
       //requestRender();
     }
@@ -1412,6 +1435,28 @@ export default async function ForceGraph(
     searched = true;
   }
 
+  // Function to zoom content to fit
+  function zoomToFit(app, viewport, nodeBounds) {
+
+    const boundsWidth = nodeBounds.x[1] - nodeBounds.x[0];
+    const boundsHeight = nodeBounds.y[1] - nodeBounds.y[0];
+    const stageWidth = width;
+    const stageHeight = height;
+    console.log(nodeBounds, stageWidth, stageHeight)
+
+    // Calculate the scale factor to fit the container in the stage
+    const scaleX = stageWidth / boundsWidth;
+    const scaleY = stageHeight / boundsHeight;
+    const scale = Math.min(scaleX, scaleY);  // Use the smallest scale to fit
+
+    // Apply the scale to the container
+    viewport.scale.set(scale);
+
+    // Optionally, center the container after scaling
+    //viewport.x = (stageWidth - boundsWidth * scale) / 2;
+  //  viewport.y = (stageHeight - boundsHeight * scale) / 2;
+  }
+
   // Function to update tooltip content inside a DIV
   function updateTooltip(d) {
     let content = [];
@@ -1423,7 +1468,9 @@ export default async function ForceGraph(
     // }
     const datum = allNodes.find(node => node.NAME === d.NAME)
     TOOLTIP_KEYS.forEach(key => {
-      content.push(`<div><b>${key}: </b><span>${datum[key]}</span></div>`);
+      if(datum[key] && datum[key] !== ""){
+        content.push(`<div><b>${key}: </b><span>${datum[key]}</span></div>`);
+      }
     })
 
     let contentStr = "";

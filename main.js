@@ -47,7 +47,6 @@ async function getData() {
           nodeGroup: (d) => d.SUBMODULE,
           nodeTitle: (d) => d.NAME,
           //nodeRadius: (d) => d.DIMENSION1,
-          linkStroke: "#fff",
           nodeStroke: "#000",
           linkStrokeWidth: 0.6,
           linkStroke: "#fff",
