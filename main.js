@@ -10,11 +10,12 @@ async function getData() {
     //   },
     // };
 
+    console.log('Base URL:', import.meta.env.BASE_URL);
+    console.log('Current URL:', window.location.href);
+
     //const [response1, response2] = await Promise.all([fetch("/api/nodes", params), fetch("/api/edges", params)]);
     const [response1, response2] = await Promise.all([fetch(`${import.meta.env.BASE_URL}assets/nodes.json`), fetch(`${import.meta.env.BASE_URL}assets/edges.json`)]);
 
-    console.log('Base URL:', import.meta.env.BASE_URL);
-    console.log('Current URL:', window.location.href);
 
     if (!response1.ok || !response2.ok) {
       throw new Error(`HTTP error! Status: ${response1.status} ${response2.status}`);
