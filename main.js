@@ -10,9 +10,52 @@ async function getData() {
     //   },
     // };
 
-    console.log('Base URL:', import.meta.env.BASE_URL);
-    console.log('Current URL:', window.location.href);
+    async function loadEdgesJson() {
+      try {
+        console.log('Base URL:', import.meta.env.BASE_URL);
+        console.log('Current URL:', window.location.href);
 
+        // Try multiple path variations
+        const paths = [
+          `${import.meta.env.BASE_URL}assets/edges.json`,
+          '/assets/edges.json',
+          './assets/edges.json',
+          `${window.location.pathname}assets/edges.json`
+        ];
+
+        for (const path of paths) {
+          try {
+            console.log(`Attempting to fetch: ${path}`);
+            const response = await fetch(path);
+
+            if (!response.ok) {
+              console.error(`Failed to fetch ${path}. Status: ${response.status}`);
+              continue;
+            }
+
+            const data = await response.json();
+            console.log(`Successfully loaded data from ${path}:`, data);
+            return data;
+          } catch (fetchError) {
+            console.error(`Error fetching ${path}:`, fetchError);
+          }
+        }
+
+        throw new Error('Could not load edges.json from any attempted path');
+      } catch (error) {
+        console.error('Overall loading error:', error);
+        throw error;
+      }
+    }
+
+// Call the function
+    loadEdgesJson()
+      .then(data => {
+        console.log('Final loaded data:', data);
+      })
+      .catch(error => {
+        console.error('Failed to load edges.json:', error);
+      });
     //const [response1, response2] = await Promise.all([fetch("/api/nodes", params), fetch("/api/edges", params)]);
     const [response1, response2] = await Promise.all([fetch(`${import.meta.env.BASE_URL}assets/nodes.json`), fetch(`${import.meta.env.BASE_URL}assets/edges.json`)]);
 
