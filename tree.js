@@ -1,6 +1,8 @@
 import * as d3 from "d3";
 
 export default function VariableTree(nodes, THRESHOLD) {
+
+
   const ROOT = { id: "ROOT" };
 
   // Create the submodule nodes
@@ -61,6 +63,7 @@ export default function VariableTree(nodes, THRESHOLD) {
   }
   data = deduplicatedArray;
 
+  debugger;
   // Node content
   function renderNode(selection, rcd) {
     selection.append("span").text(rcd.NAME);
