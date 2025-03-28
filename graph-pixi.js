@@ -751,7 +751,7 @@ export default async function ForceGraph(
       //.style('left', event.x - 100 + 'px')
       .style("top", 150 + "px") // adjust starting point of tooltip div to minimise chance of overlap with node
       .style("left", tooltipLeft + "px")
-      .style("visibility", (expandedAll && !mouseover)  ? "hidden" :"visible");
+      .style("visibility", (expandedAll && !mouseover) || config.selectedNodeNames.length === 0 ? "hidden" :"visible");
   }
   //////////////////////////////////////////////////////////////////////////////
 

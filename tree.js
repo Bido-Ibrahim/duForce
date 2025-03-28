@@ -259,15 +259,18 @@ export default function VariableTree(nodes) {
 
   config.setExpandedTreeData(data.copy())
   const treeData = setToStartingDepth();
-  config.setCollapsedTreeData(treeData.copy());
+  config.setCollapsedTreeData(setToStartingDepth().copy());
   config.setCurrentTreeData(treeData);
 
   const initialTreeHeight = marginTop + (treeData.descendants().length * rowHeight); // this resets after each render
 
   d3.select(`#${treeDivId}`)
+    .style("pointer-events", "auto")
     .on('wheel', function(event) {
       event.stopPropagation(); // Prevent the scroll event from affecting other elements
-    });
+      event.preventDefault();
+    })
+
   // append svg if there is one
   let svg = d3.select(`.${treeDivId}_svg`);
   if(svg.node() === null) {
