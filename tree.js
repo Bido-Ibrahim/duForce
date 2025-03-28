@@ -268,7 +268,6 @@ export default function VariableTree(nodes) {
     .style("pointer-events", "auto")
     .on('wheel', function(event) {
       event.stopPropagation(); // Prevent the scroll event from affecting other elements
-      event.preventDefault();
     })
 
   // append svg if there is one
