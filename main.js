@@ -1,5 +1,8 @@
 import ForceGraph from "./graph-pixi.js";
+import VariableTree from "./tree";
+import { config } from "./config";
 
+let graphData = {};
 async function getData() {
   try {
     // const params = {
@@ -25,8 +28,7 @@ async function getData() {
     const resultEdges = await response2.json();
 
     if (resultNodes && resultEdges) {
-      const colors = ["#418BFC", "#46BCC8", "#D6AB1B", "#EB5E68", "#B6BE1C", "#F64D1A", "#BA6DE4", "#EA6BCB", "#B9AAC8", "#F08519"];
-      const resultNodesTrunc = resultNodes.map((d) => {
+      let resultNodesTrunc = resultNodes.map((d) => {
         return {
           NAME: d.NAME,
           DEFINITION: d.DEFINITION,
@@ -39,28 +41,37 @@ async function getData() {
           ...d
         };
       });
-
-      // Execute the function to generate a new network
-      ForceGraph(
-        { nodes: resultNodesTrunc, links: resultEdges },
-        {
-          containerSelector: "#app",
-          nodeId: "NAME",
-          sourceId: "UsesVariable",
-          targetId: "Variable",
-          nodeGroup: (d) => d.SUBMODULE,
-          nodeTitle: (d) => d.NAME,
-          //nodeRadius: (d) => d.DIMENSION1,
-          nodeStroke: "#000",
-          linkStrokeWidth: 0.6,
-          linkStroke: "#fff",
-          labelColor: "#fff",
-          labelScale: 3,
-          colors,
-          width: window.innerWidth,
-          height: window.innerHeight,
+      config.setInitialLoadComplete(true);
+      // data handling - maybe best to do this in main.js?
+      // handling data with null SUBMODULE
+      resultNodesTrunc.filter((f) => f.SUBMODULE === null).map((m) => {
+        const matching = resultNodesTrunc.find((f) => f.SUBMODULE_NAME === m.SUBMODULE_NAME);
+        if(matching){
+          m.SUBMODULE = matching.SUBMODULE;
+        } else {
+          console.error(`${JSON.stringify(m)} has missing SUBMODULE data`);
         }
-      );
+      });
+      resultNodesTrunc = resultNodesTrunc.filter((f) => f.SUBMODULE !== null);
+
+      // handling data with null SUBMODULE
+      resultNodesTrunc.filter((f) => f.SEGMENT === null).map((m) => {
+        const matching = resultNodesTrunc.find((f) => f.SUBMODULE === m.SUBMODULE && m.SEGMENT_NAME === f.SEGMENT_NAME);
+        if(matching){
+          m.SEGMENT = matching.SEGMENT;
+        } else {
+          console.error(`${JSON.stringify(m)} has missing SEGMENT data`);
+        }
+      });
+      resultNodesTrunc = resultNodesTrunc.filter((f) => f.SEGMENT !== null);
+
+      // selected node names stored in global array (default all selected)
+      config.setSelectedNodeNames(resultNodesTrunc.map((m) => m.NAME));
+      // as previously, chart always renders with full dataset (stored here);
+      graphData = { nodes: resultNodesTrunc, links: resultEdges }
+      // tree is rendered first - renderGraph is called after each tree change
+      VariableTree(resultNodesTrunc);
+
     } else {
       throw new Error("Invalid response format");
     }
@@ -69,4 +80,32 @@ async function getData() {
   }
 }
 
-getData();
+export const renderGraph = (initial) => {
+ if(!graphData || !graphData.nodes){
+   return;
+ }
+
+  // Execute the function to generate a new network
+  ForceGraph(
+    graphData,
+    {
+      containerSelector: "#app",
+      initial,
+      nodeId: "NAME",
+      sourceId: "UsesVariable",
+      targetId: "Variable",
+      nodeGroup: (d) => `submodule-${d.SUBMODULE}`,
+      nodeTitle: (d) => d.NAME,
+      nodeStroke: "#000",
+      linkStroke: "#fff",
+      labelColor: "#fff",
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }
+  );
+}
+// cheat because main.js was calling twice and didn't want to waste your time debugging at this stage
+if(!config.initialLoadComplete){
+  getData();
+}
+
