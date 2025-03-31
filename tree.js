@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { COLOR_SCALE_DOMAIN_ID, COLOR_SCALE_RANGE, PANEL_WIDTH } from "./constants";
+import {  COLOR_SCALE_RANGE, PANEL_WIDTH } from "./constants";
 import { renderGraph } from "./main";
 import { config } from "./config";
 export const getColorScale = () => {
@@ -30,7 +30,9 @@ const getHierarchy = (nodes) => {
       }
       return acc;
     },[])
-    .sort((a,b) => d3.ascending(a[COLOR_SCALE_DOMAIN_ID],b[COLOR_SCALE_DOMAIN_ID]))
+    .sort((a,b) => d3.ascending(a.NAME,b.NAME))
+
+
 
   config.setSubModules(SUBMODULES.map((m) => m.id))
   // slightly re-written since data is simpler for chart - same result
@@ -170,7 +172,7 @@ export const drawTree = () => {
     .attr("stroke-width", 0.25);
 
   treeGroup.select(".expandCollapseIcon")
-    .attr("display", (d) => !d.children && !d.data._children ? "none" : "block")
+    .attr("display", (d) => d.depth === 3 ? "none" : "block")
     .attr("width",  (d) => iconWidthHeight - depthExtra(d.depth,2))
     .attr("height",(d) => iconWidthHeight - depthExtra(d.depth,2))
     .attr("viewBox",(d) => !d.children ? rightArrowViewBox : standardViewBox)
@@ -228,6 +230,7 @@ export const drawTree = () => {
 export default function VariableTree(nodes) {
   // initial set up for tree and buttons above
   const selectedNodeNamesCopy = JSON.parse(JSON.stringify(config.selectedNodeNames));
+  config.setAllNodeNames(selectedNodeNamesCopy);
 
   const data = getHierarchy(nodes);
   // mapping submodules and segments to their child nodes (for tree selection)
@@ -244,8 +247,8 @@ export default function VariableTree(nodes) {
   const startingDepth = 1;
   // hiding children beyond startingDepth - common d3 practice
 
-  const setToStartingDepth = () => {
-    data.descendants()
+  const setToStartingDepth = (dataset) => {
+    dataset.descendants()
       .forEach((d) => {
         if(d.children){
           if(d.depth >= startingDepth){
@@ -257,9 +260,11 @@ export default function VariableTree(nodes) {
     return data;
   }
 
-  config.setExpandedTreeData(data.copy())
-  const treeData = setToStartingDepth();
-  config.setCollapsedTreeData(setToStartingDepth().copy());
+  const allExpandedData = data.copy();
+  config.setExpandedTreeData(allExpandedData)
+  const treeData = setToStartingDepth(data);
+  const allCollapsedData = treeData.copy();
+  config.setCollapsedTreeData(allCollapsedData);
   config.setCurrentTreeData(treeData);
 
   const initialTreeHeight = marginTop + (treeData.descendants().length * rowHeight); // this resets after each render

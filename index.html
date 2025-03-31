@@ -55,11 +55,11 @@
 
       th, td {
           border: 0.5px solid #A0A0A0;
-          padding: 0px;
+          padding: 3px;
           text-align: center;
       }
       th {
-          background-color: #f2f2f2;
+          background-color: #D0D0D0;
       }
       td {
           text-align: center;
@@ -200,6 +200,71 @@
         border-top: none;
       }
 
+#nnDegreeDiv{
+    position: absolute;
+    top: 68px;
+    left: 12px;
+    align-items: center;
+    display: none;
+}
+
+      input[type="range"] {
+          width: 100px;
+          margin-left: 5px;
+          margin-right: 0px;
+          vertical-align: middle;
+      }
+      #nnDegreeLabel {
+          margin: 0px;
+          padding: 0px;
+          vertical-align: middle; /* Ensures the label is aligned with the slider */
+          line-height: 1
+      }
+
+      #nnDegreeValue {
+          margin-left: 5px; /* Adds space between the slider and the value display */
+          font-weight: bold; /* Optional, to highlight the value */
+          font-size: 14px;
+          vertical-align: middle;
+      }
+
+      #zoom-button-component {
+          position: relative;
+          border: 0px solid transparent;
+          background-color: transparent;
+          z-index: 400;
+      }
+
+      #zoom-in {
+          left: 5px;
+      }
+
+      #zoom-out {
+          left: 33px;
+      }
+
+      #zoom-fit {
+          left: 61px;
+      }
+
+      .zoom-button {
+          position: absolute;
+      top: calc(100vh - 32px);
+          width: 25px;
+          height: 25px;
+          border: 1px solid white;
+          background-color: transparent;
+          color: white;
+          font-size: 12px;
+          border-radius: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background-color 0.3s;
+          z-index: 350;
+      }
+
       .toolbar-button {
           width: 43px;
           height: 43px;
@@ -227,6 +292,11 @@
           padding: 5px;
           box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
           z-index: 120;
+      }
+
+      .dropdown-span{
+          margin-left: 10px;
+          font-size: 14px;
       }
       .dropdown-item {
           display: flex;
@@ -305,9 +375,13 @@
       .animation-container {
           display: flex;
           flex-wrap: wrap;
-          justify-content: center;
+          justify-content: center; /* Horizontally center content */
+          align-items: center;     /* Vertically center content */
           gap: 30px;
           padding: 20px;
+          min-height: 100vh;        /* Ensure the container takes up at least 100% of the viewport height */
+          box-sizing: border-box;   /* Include padding in the element's total width and height calculation */
+
       }
 
       .loading-animation {
@@ -383,7 +457,18 @@
     <div id="fb-root"></div>
 
     <script type="module" src="./main.js"></script>
-    <div class="button-panel" id="buttonPanel"></div>
+    <div id="zoom-button-component">
+      <button class="zoom-button" id="zoom-fit">
+        <i class="fas fa-arrow-rotate-right"></i>
+      </button>
+      <button class="zoom-button" id="zoom-out">
+        <i class="fas fa-minus"></i>
+      </button>
+      <button class="zoom-button" id="zoom-in">
+        <i class="fas fa-plus"></i>
+      </button>
+
+    </div>
 
     <div id="app"></div>
 
@@ -427,11 +512,16 @@
         </div>
       </div>
     </div>
-
     <div id="search-tab-container">
       <div id="search-container">
         <input type="text" id="search-input" placeholder="Search for variables" />
         <div id="suggestions-container"></div>
+      </div>
+      <div id="nnDegreeDiv">
+        <label id="nnDegreeLabel" for="nnDegree">Degree</label>
+        <input type="range" id="nnDegree" name="nnDegree" min="1" max="3" value="1" />
+        <span id="nnDegreeValue">1</span>
+
       </div>
       <button class="toolbar-button" id="show-arrows-button">
         <i class="fas fa-arrows-to-eye"></i>
@@ -443,13 +533,12 @@
         <i class="fas fa-circle-nodes"></i>
       </button>
       <div class="dropdown-menu">
-        <button class="dropdown-item"><i class="fas fa-circle-nodes"></i>Default</button>
-        <button class="dropdown-item"><i class="fas fa-wave-square"></i>Shortest Path</button>
-        <button class="dropdown-item"><i class="fas fa-sitemap"></i>Hierarchy</button>
-        <button class="dropdown-item"><i class="fas fa-house-user"></i>Nearest Neighbour</button>
+        <button class="dropdown-item" id="default"><i class="fas fa-circle-nodes"></i><span class="dropdown-span">Default</span></button>
+        <button class="dropdown-item" id="shortestPath"><i class="fas fa-wave-square"></i><span class="dropdown-span">Shortest Path</span></button>
+        <button class="dropdown-item" id="nearestNeighbour"><i class="fas fa-house-user"></i><span class="dropdown-span">Nearest Neighbour</span></button>
       </div>
-      <p id="showInfo">Show info panel</p>
-      <p id="hideInfo" class="hidden">Hide info panel</p>
+      <p class="viewButton" id="showInfo">Show info panel</p>
+      <p class="viewButton" id="hideInfo" class="hidden">Hide info panel</p>
       <br>
       <div id="tabbed-component">
 

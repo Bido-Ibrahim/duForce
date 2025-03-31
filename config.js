@@ -2,11 +2,16 @@
 export const config = {
   // Mutable constants
   initialLoadComplete: false,
+  allNodeNames: [],
   expandedTreeData: {}, // stored for collapseAll button
   collapsedTreeData: {},
   currentTreeData: {}, // current tree expansion status
   tier1And2Mapper: {},
   selectedNodeNames: [],
+  nearestNeighbourOrigin: "",
+  nearestNeighbourDegree: 1,
+  notDefaultSelectedNodeNames: [],
+  notDefaultSelectedLinks: [],
   subModules: [],
   currentLayout: "default",
   showSingleNodes: true,
@@ -17,6 +22,34 @@ export const config = {
       this.tier1And2Mapper = newObject;
     } else {
       console.error("Expected an array for tier1And2Mapper.");
+    }
+  },
+  setAllNodeNames(newObject) {
+    if (typeof newObject === "object") {
+      this.allNodeNames = newObject;
+    } else {
+      console.error("Expected an array for allNodeNames.");
+    }
+  },
+  setNearestNeighbourDegree(newNumber) {
+    if (typeof +newNumber === "number") {
+      this.nearestNeighbourDegree = +newNumber;
+    } else {
+      console.error("Expected an array for nearestNeighbourDegree.");
+    }
+  },
+  setNotDefaultSelectedLinks(newObject) {
+    if (typeof newObject === "object") {
+      this.notDefaultSelectedLinks = newObject;
+    } else {
+      console.error("Expected an array for notDefaultSelectedLinks.");
+    }
+  },
+  setNearestNeighbourOrigin(newNodeName) {
+    if (typeof newNodeName === "string") {
+      this.nearestNeighbourOrigin = newNodeName;
+    } else {
+      console.error("Expected an array for nearestNeighbourOrigin.");
     }
   },
   setCollapsedTreeData(newObject) {
@@ -54,7 +87,13 @@ export const config = {
       console.error("Expected an array for setSelectedNodeName.");
     }
   },
-
+  setNotDefaultSelectedNodeNames(newArray) {
+    if (Array.isArray(newArray)) {
+      this.notDefaultSelectedNodeNames = newArray;
+    } else {
+      console.error("Expected an array for notDefaultSelectedNodeNames.");
+    }
+  },
   addToSelectedNodeNames(newName) {
     if (typeof newName === 'string') {
       if(!this.selectedNodeNames.some((s) => s === newName)){
