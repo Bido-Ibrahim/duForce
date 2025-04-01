@@ -86,8 +86,10 @@
       }
 
 
+
+
       /* Style search box and its contents */
-      #search-container {
+      #search-container,#search-container-sp-end {
         /* position: absolute;
         display: flex;
         top: 0px;
@@ -96,20 +98,32 @@
         height: 60px;
         margin: 2px;
         position: relative;
-        z-index: 150;
-      }
 
-      #search-input {
+      }
+      #search-container{
+          z-index: 90;
+      }
+      #search-container-sp-end{
+            z-index: 70;
+        }
+      #search-input,#search-input-sp-end {
         font-family: "Lato", sans-serif;
+          padding: 10px;
         width: 160px;
-        padding: 10px;
         border: 2px solid var(--text-color);
         background-color: var(--main-bg-color);
         color: var(--text-color);
         font-size: 16px;
       }
+      #search-container-sp-end{
+          display: none;
+      }
 
-      #suggestions-container {
+      #search-input-sp-end{
+          position: absolute;
+          top: -15px;
+      }
+      #suggestions-container, #suggestions-container-sp-end {
         /* position: absolute;
         top: 100%;
         left: 0;
@@ -124,6 +138,7 @@
         position: relative;
         z-index: 99;
       }
+
 
       .suggestion {
         padding: 10px;
@@ -231,7 +246,7 @@
       #zoom-button-component {
           position: relative;
           border: 0px solid transparent;
-          background-color: transparent;
+          background-color: var(--main-bg-color);
           z-index: 400;
       }
 
@@ -243,7 +258,7 @@
           left: 33px;
       }
 
-      #zoom-fit {
+      #zoom-to-fit {
           left: 61px;
       }
 
@@ -339,10 +354,11 @@
           right: 105px;
       }
 
-      .toolbar-button:hover {
+      .toolbar-button:hover, .zoom-button:hover {
           background-color: #484848;
       }
       .toolbar-button i {
+          pointer-events: none;
           color: white;
           font-size: 50px;
       }
@@ -451,14 +467,28 @@
           0%, 100% { transform: scale(1);  }
           50% { transform: scale(1.2);  }
       }
+
+      #noShortestPathMessage{
+          background-color: transparent;
+          color: white;
+          z-index: 200;
+          width: 150px;
+          padding: 10px; /* Optional: Add padding */
+          position: fixed;
+          text-align: center;
+          left: calc(50vw - 75px);
+          top: calc(50vh - 40px);
+          visibility: hidden;
+      }
     </style>
   </head>
   <body>
     <div id="fb-root"></div>
+   <div id="noShortestPathMessage">There is no shortest path between the selected nodes</div>
 
     <script type="module" src="./main.js"></script>
     <div id="zoom-button-component">
-      <button class="zoom-button" id="zoom-fit">
+      <button class="zoom-button" id="zoom-to-fit">
         <i class="fas fa-arrow-rotate-right"></i>
       </button>
       <button class="zoom-button" id="zoom-out">
@@ -517,6 +547,10 @@
         <input type="text" id="search-input" placeholder="Search for variables" />
         <div id="suggestions-container"></div>
       </div>
+      <div id="search-container-sp-end">
+        <input type="text" id="search-input-sp-end" placeholder="Search for end node" />
+        <div id="suggestions-container-sp-end"></div>
+      </div>
       <div id="nnDegreeDiv">
         <label id="nnDegreeLabel" for="nnDegree">Degree</label>
         <input type="range" id="nnDegree" name="nnDegree" min="1" max="3" value="1" />
@@ -541,7 +575,6 @@
       <p class="viewButton" id="hideInfo" class="hidden">Hide info panel</p>
       <br>
       <div id="tabbed-component">
-
         <!-- Tab links -->
         <div class="tab">
           <button class="tablinks" onclick="openTab(event, 'Info')">

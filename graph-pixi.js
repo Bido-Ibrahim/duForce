@@ -7,8 +7,7 @@ import Fuse from 'fuse.js'
 import { config } from "./config";
 import { drawTree, getColorScale } from "./tree";
 import { PANEL_WIDTH } from "./constants";
-
-let previousNodes = [];
+import { dijkstra } from "graphology-shortest-path";
 
 export default async function ForceGraph(
   {
@@ -47,13 +46,15 @@ export default async function ForceGraph(
       "z-index": 10,
     },
     tooltipExtraStyles = {
-      width: "100px",
+      width: "auto",
+      "max-width": "150px",
       height: "auto",
       padding: "2px",
+      "pointer-events":"none",
       "background-color": "white",
+      "border-radius": "2px",
       border: "0.5px solid black",
-      color: "black",
-      "font-size":"12",
+      color: "#404040",
       "z-index": 30,
     },
   } = {}
@@ -335,7 +336,7 @@ export default async function ForceGraph(
           nodeGfx.on("mouseover", (event) =>
           {
             const node = nodeGfxToNodeData.get(event.currentTarget);
-            if(node.visible && event.srcElement.tagName === "CANVAS"){
+            if(node.visible && node.alpha > 0 && event.srcElement.tagName === "CANVAS"){
               event.currentTarget.children[0].tint = "white";
               event.currentTarget.alpha = 1;
               updateTooltip(nodeGfxToNodeData.get(event.currentTarget),true, event.x)
@@ -455,15 +456,8 @@ export default async function ForceGraph(
     // simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
     //  simulation.stop();
       if(config.currentLayout === "default"){
-        showEle.nodes.map((m) => {
-          const previousNode = previousNodes[m.id];
-          m.x = previousNode.x;
-          m.y = previousNode.y;
-        })
-      } else if (config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin !== ""){
-        // need to update to add positions (I think)...
+       resetDefaultNodes();
       }
-
       updatePositions(true);
     } else {
       simulation.nodes(showEle.nodes).force("link").links(showEle.links);
@@ -475,6 +469,11 @@ export default async function ForceGraph(
 
       simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
       simulation.stop();
+      const defaultNodePositions = showEle.nodes.reduce((acc, node) => {
+        acc[node.id] =  { x: node.x, y: node.y};
+        return acc
+      },{})
+      config.setDefaultNodePositions(defaultNodePositions)
       updatePositions(true);
     }
 
@@ -487,15 +486,24 @@ export default async function ForceGraph(
     });
 
     // Update search box with searchable items
-    updateSearch(showEle.nodes,  graph);
+    updateSearch(showEle.nodes,  graph,"");
+    updateSearch(showEle.nodes, graph,"-sp-end")
     updateButtons(graph);
 
+  }
+  const resetDefaultNodes = () => {
+    const previousPositions = config.defaultNodePositions;
+    showEle.nodes.map((m) => {
+      const previousNode = previousPositions[m.id];
+      m.x = previousNode.x;
+      m.y = previousNode.y;
+    })
   }
 
   const getNeighbours =(graph,nameArray, direction, nnDepth, previousNNNodes) =>  nameArray.reduce((acc, origin) => {
 
     bfsFromNode(graph, origin, function (node, attr, depth) {
-        if (depth <= 1 && node !== origin && !previousNNNodes.some((s) => s === node)) {
+        if (depth <= 1 && node !== origin && !previousNNNodes.some((s) => s === node) && !acc.some((s) => s.node === node)) {
           const source = direction === "outbound" ? origin : node;
           const target = direction === "outbound" ? node : origin;
           acc.push({
@@ -511,12 +519,12 @@ export default async function ForceGraph(
     const depth1OutboundLinks = getNeighbours(graph,[config.nearestNeighbourOrigin], "outbound",1,[]);
     const depth1InboundLinks = getNeighbours(graph,[config.nearestNeighbourOrigin],"inbound",1,[]);
     const depth1Links = depth1OutboundLinks.concat(depth1InboundLinks);
-    if(config.nearestNeighbourDegree > 1){
+    if(config.nearestNeighbourDegree > 1 && depth1Links.length > 0){
       const depth1NodeNames = [config.nearestNeighbourOrigin].concat(depth1Links.map((m) => m.node));
       const depth2OutboundLinks = getNeighbours(graph,depth1OutboundLinks.map((m) => m.node),"outbound",2,depth1NodeNames);
       const depth2InboundLinks = getNeighbours(graph, depth1InboundLinks.map((m) => m.node),"inbound",2,depth1NodeNames);
       const depth2Links = depth2OutboundLinks.concat(depth2InboundLinks);
-      if(config.nearestNeighbourDegree > 2){
+      if(config.nearestNeighbourDegree > 2 && depth2Links.length > 0){
         const depth2NodeNames = depth1NodeNames.concat(depth2Links.map((m) => m.node));
         const depth3OutboundLinks = getNeighbours(graph,depth2OutboundLinks.map((m) => m.node),"outbound",3,depth2NodeNames);
         const depth3InboundLinks = getNeighbours(graph, depth2InboundLinks.map((m) => m.node),"inbound",3,depth2NodeNames);
@@ -551,29 +559,38 @@ export default async function ForceGraph(
     const outboundRootLink = [{ source: "", target: config.nearestNeighbourOrigin }];
     const outboundHierarchy = getHierarchy("source","target","outbound",outboundRootLink);
 
-
     const eleNodes = nnLinks.reduce((acc, link) => {
       if(!acc.some((s) => s.NAME === link.source)){
-        acc.push(showEle.nodes.find((f) => f.NAME === link.source))
+        const matchingNode = showEle.nodes.find((f) => f.NAME === link.source);
+        acc.push(matchingNode)
       }
       if(!acc.some((s) => s.NAME === link.target)){
-        acc.push(showEle.nodes.find((f) => f.NAME === link.target))
+        const matchingNode = showEle.nodes.find((f) => f.NAME === link.target);
+        acc.push(matchingNode)
       }
       return acc;
     },[])
 
-
-    const maxRadius = d3.max(eleNodes.filter((f) => f.NAME !== config.nearestNeighbourOrigin), (d) => d.radius * 2.1);
-
-    const nodesByGroup = Array.from(d3.group(eleNodes, (g) => g.depth))
-    const radiusSumByGroup = nodesByGroup.reduce((acc, group) => {
-      const radiusSum = d3.sum(group[1], (s) => s.radius * 2.1);
-      if(radiusSum > acc){
-        acc = radiusSum;
-      }
+    const radiusByDepthDirection = nnLinks.reduce((acc, link) => {
+      const depthDirection = `${link.depth}-${link.direction}`;
+      if(!acc[depthDirection]){acc[depthDirection] = 0};
+      const matchingNode = showEle.nodes.find((f) => f.NAME === link[link.direction === "outbound" ? "source" : "target"]);
+      acc[depthDirection] += (matchingNode.radius * 2.1);
       return acc;
-    },0)
-    const dx = radiusSumByGroup > height ? height/d3.max(nodesByGroup,(m) => m[1].length) : maxRadius;
+    },{})
+
+
+
+    const maxColumnRadius = nnLinks.length === 0 ? 0 : d3.max(Object.values(radiusByDepthDirection));
+    const maxKey = Object.keys(radiusByDepthDirection).find((f) => radiusByDepthDirection[f] === maxColumnRadius);
+
+    let filteredLinks = [];
+    if(maxKey){
+      const maxKeySplit = maxKey.split("-");
+      filteredLinks = nnLinks.filter((f) => f.depth === +maxKeySplit[0] && f.direction === maxKeySplit[1]);
+    }
+
+    const dx = maxColumnRadius > height ? height/(filteredLinks.length/3) : maxColumnRadius;
 
     const visibleWidth = window.innerWidth < 1000 ? window.innerWidth : window.innerWidth - PANEL_WIDTH;
     const dy = (visibleWidth - dx * 2) / totalDepth;
@@ -585,13 +602,14 @@ export default async function ForceGraph(
       .filter((f) => f.depth > 0)
 
     const getAllNodePositions = () => {
-      const centralNodes = [{ name: config.nearestNeighbourOrigin, x: 0, y: 0, direction: "center" }];
+      const centralNodes = [{ name: config.nearestNeighbourOrigin, x: 0, y: 0, direction: "center", depth: 0 }];
       const inboundNodes = getTree(inboundHierarchy).reduce((acc, node) => {
         acc.push({
           name: node.id,
           x: -node.y,
           y: node.x,
-          direction: "in"
+          direction: "in",
+          depth: node.depth
         });
         return acc;
       }, []);
@@ -600,18 +618,94 @@ export default async function ForceGraph(
           name: node.id,
           x: node.y,
           y: node.x,
-          direction: "out"
+          direction: "out",
+          depth: node.depth
         });
         return acc;
       }, []);
-      return centralNodes.concat(inboundNodes).concat(outboundNodes);
+      const allNodes = centralNodes.concat(inboundNodes).concat(outboundNodes);
+      return allNodes.reduce((acc, node) => {
+        const matchingNode = showEle.nodes.find((f) => f.NAME === node.name);
+        node.radius = matchingNode.radius;
+        acc.push(node);
+        return acc;
+      },[])
+    }
+
+    const allNNNodes = getAllNodePositions();
+    const nodesByColumn = Array.from(d3.group(allNNNodes, (g) => `${g.direction}-${g.depth}`));
+    const groupsWithHeightInRange = nodesByColumn.filter((f) => f[1].length > 1 && d3.sum(f[1], (s) => s.radius * 2.1) < height);
+    groupsWithHeightInRange.forEach((group) => {
+      let currentY = -(d3.sum(group[1], (s) => s.radius * 2.1))/2;
+      group[1].forEach((node) => {
+        node.y = currentY + node.radius;
+        currentY += (node.radius * 2.1);
+      })
+    })
+
+    if(maxColumnRadius > height){
+      // now the simulation part
+      const ySimulation = d3.forceSimulation()
+        .alphaDecay(0.1)
+        .force('x', d3.forceX((d) => d.x).strength(0.8))
+        .force('y', d3.forceY((d) => d.y).strength(0.8))
+        .force('collide', d3.forceCollide().radius((d) => d.radius * 1.1).strength(0.6));
+      ySimulation.stop();
+      ySimulation.nodes(allNNNodes);
+      ySimulation.tick(300);
     }
 
     config.setNotDefaultSelectedLinks(nnLinks);
-    config.setNotDefaultSelectedNodeNames(getAllNodePositions());
+    config.setNotDefaultSelectedNodeNames(allNNNodes);
+
     updatePositions(true);
   }
 
+  function positionShortestPath (graph) {
+    const connectedNodes = dijkstra.bidirectional(graph, config.shortestPathStart, config.shortestPathEnd);
+    if(connectedNodes){
+      const connectedLinks = connectedNodes.reduce((acc, node,index) => {
+        if(index > 0){
+          const previousConnection = connectedNodes[index - 1];
+          const matchingLink = showEle.links.find((f) => getSourceId(f) === previousConnection && getTargetId(f) === node);
+          if(matchingLink){
+            acc.push({
+              source:previousConnection,
+              target: node,
+              node: previousConnection,
+              depth: 1,
+              direction:"outbound"
+            })
+          }
+        }
+        return acc;
+      },[])
+      let nodeGap = 50;
+      const nodeStart = -(connectedNodes.length * nodeGap)/2
+      const connectedChartNodes = connectedNodes.reduce((acc, node, index) => {
+        const matchingNode = showEle.nodes.find((f) => f.NAME === node);
+        if(index === 0){
+          nodeGap -= matchingNode.radius
+        }
+        acc.push({
+          name: matchingNode.id,
+          x: nodeStart + (nodeGap * index),
+          y: 0,
+          direction: "out"
+        });
+      return acc
+      },[]);
+      config.setNotDefaultSelectedLinks(connectedLinks);
+      config.setNotDefaultSelectedNodeNames(connectedChartNodes);
+    } else {
+      d3.select("#noShortestPathMessage").style("visibility","visible");
+      config.setNotDefaultSelectedLinks([]);
+      config.setNotDefaultSelectedNodeNames([]);
+    }
+
+    updatePositions(true);
+
+  }
 
   function updateLink (linkGfx, sourceNodeData, targetNodeData, linkAlpha) {
     // used in update + updatePositions
@@ -622,7 +716,7 @@ export default async function ForceGraph(
     const line = linkGfx.getChildByName("LINE");
     const lineLength = Math.max(Math.sqrt((targetNodeData.x - sourceNodeData.x) ** 2 + (targetNodeData.y - sourceNodeData.y) ** 2) - sourceNodeData.radius - targetNodeData.radius, 0);
     line.width = lineLength;
-    line.alpha = linkAlpha;
+    line.alpha = config.currentLayout !== "default" && linkAlpha > 0 ? 0.3 : linkAlpha;
     line.visible = linkAlpha !== 0;
 
     const arrow = linkGfx.getChildByName("ARROW");
@@ -631,10 +725,20 @@ export default async function ForceGraph(
   }
 
   function clickNode (nodeName,origin, graph){
+    d3.select("#noShortestPathMessage").style("visibility","hidden");
     if(origin === "search" && config.currentLayout === "nearestNeighbour"){
       config.setNearestNeighbourOrigin(nodeName);
       positionNearestNeighbours(graph);
-    } else if(expandedAll){
+    } else if (config.currentLayout === "shortestPath") {
+      if(origin === "search"){
+        config.setShortestPathStart(nodeName);
+      } else {
+        config.setShortestPathEnd(nodeName);
+      }
+      if(config.shortestPathStart !== "" && config.shortestPathEnd !== ""){
+        positionShortestPath(graph);
+      }
+    }else if(expandedAll){
       config.setSelectedNodeNames([nodeName])
     } else if(config.selectedNodeNames.some((s) => s === nodeName)){
       const filteredNodes = config.selectedNodeNames.filter((f) => f !== nodeName);
@@ -658,6 +762,7 @@ export default async function ForceGraph(
     expandedAll = nodes.length === config.selectedNodeNames.length;
     const getNodeAlpha = (nodeName, linkCount,label) => {
       if(config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin === "") return 0;
+      if(config.currentLayout === "shortestPath" && (config.shortestPathStart === "" || config.shortestPathEnd === "")) return 0;
       if(linkCount === 0 && !config.showSingleNodes) return 0;
       if(expandedAll) return nodeFillOpacity;
       if(config.selectedNodeNames.includes(nodeName)) return nodeFillOpacity;
@@ -681,7 +786,6 @@ export default async function ForceGraph(
       const labelGfx = nodeDataToLabelGfx.get(node);
 
       if(config.currentLayout === "default"){
-        previousNodes[node.id] = {x: node.x,y:node.y};
         nodeGfx.alpha = getNodeAlpha(nodeGfx.name, node.linkCnt);
         nodeGfx.x = node.x;
         nodeGfx.y = node.y;
@@ -689,18 +793,19 @@ export default async function ForceGraph(
         labelGfx.y = node.y;
         node.alpha = nodeGfx.alpha;
       } else {
-        if(config.nearestNeighbourOrigin === ""){
+        if((config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin === "") ||
+          (config.currentLayout === "shortestPath" && (config.shortestPathStart === "" || config.shortestPathEnd === ""))){
           nodeGfx.alpha = 0;
         } else {
-          const matchingNeighbour = config.notDefaultSelectedNodeNames.find((f) => f.name === node.NAME);
-          if (matchingNeighbour) {
+          const matchingNode = config.notDefaultSelectedNodeNames.find((f) => f.name === node.NAME);
+          if (matchingNode) {
             nodeGfx.alpha = 1;
-            nodeGfx.x = matchingNeighbour.x;
-            nodeGfx.y = matchingNeighbour.y;
-            labelGfx.x = matchingNeighbour.x;
-            labelGfx.y = matchingNeighbour.y;
-            node.x = matchingNeighbour.x;
-            node.y = matchingNeighbour.y;
+            nodeGfx.x = matchingNode.x;
+            nodeGfx.y = matchingNode.y;
+            labelGfx.x = matchingNode.x;
+            labelGfx.y = matchingNode.y;
+            node.x = matchingNode.x;
+            node.y = matchingNode.y;
             node.alpha = 1;
           } else {
             nodeGfx.alpha = 0;
@@ -710,7 +815,7 @@ export default async function ForceGraph(
       }
       nodeGfx.visible = nodeGfx.alpha !== 0;
       node.visible = nodeGfx.visible;
-      labelGfx.alpha = getNodeAlpha(nodeGfx.name, node.linkCnt, true)
+      labelGfx.alpha = !node.visible ? 0 : getNodeAlpha(nodeGfx.name, node.linkCnt, true)
 
       if((config.selectedNodeNames.includes(nodeGfx.name) && config.currentLayout === "default")
         || config.notDefaultSelectedNodeNames.some((s) => s.name === node.NAME)){
@@ -744,6 +849,8 @@ export default async function ForceGraph(
       if(config.currentLayout === "default"){
         linkAlpha = getLinkAlpha(link, showEle.links.length);
       } else if (config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin === ""){
+        linkAlpha = 0;
+      } else if (config.currentLayout === "shortestPath" && (config.shortestPathStart === "" || config.shortestPathEnd === "")){
         linkAlpha = 0;
       } else {
         if(config.notDefaultSelectedLinks.some((s) => s.source === sourceId && s.target === targetId)){
@@ -827,6 +934,7 @@ export default async function ForceGraph(
   // Function to update tooltip content inside a DIV
   function updateTooltip(d, mouseover,xPos) {
     let contentStr = "";
+    let nodeTableMapper = {};
     if(mouseover || config.selectedNodeNames.length === 1){
       tooltip.style("padding","10px");
       let content = [];
@@ -848,12 +956,13 @@ export default async function ForceGraph(
       let content = [];
       if(config.selectedNodeNames.length > 0){
         tooltip.style("padding","0px")
-        const tableStart = "<table style='font-size: 10px; border-collapse: collapse;  width: 100%;'><thead><tr><th style='width:50%;'>SUBMODULE-SEGMENT</th><th style='width:50%;'>NAME</th></tr></thead><tbody>"
+        const tableStart = "<table style='font-size: 10px; border-collapse: collapse;  width: 100%;'><thead><tr><th style='width:45%;'>SUBMODULE-SEGMENT</th><th style='width:50%;'>NAME</th><th style='width:5%'></th></tr></thead><tbody>"
         content.push(tableStart);
         let nodeRows = []
-        config.selectedNodeNames.forEach((d) => {
+        config.selectedNodeNames.forEach((d,i) => {
           const matchingNode = showEle.nodes.find((f) => f.NAME === d);
-          nodeRows.push({row: `<tr><td style="background-color:${matchingNode.color}; color: white; width:50%;">${matchingNode.SUBMODULE_NAME}-${matchingNode.SEGMENT_NAME}</td><td style="width:50%;">${d}</td></tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
+          nodeRows.push({row: `<tr><td style="background-color:${matchingNode.color}; color: white; width:50%;">${matchingNode.SUBMODULE_NAME} - ${matchingNode.SEGMENT_NAME}</td><td class="nodeTableRow" id='nodeTableRow${i}' style="width:50%;">${d}</td><td style='width:5%'> <i class='fas fa-trash'></i></td></tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
+          nodeTableMapper[`nodeTableRow${i}`] = matchingNode["Parameter Explanation"];
         })
         nodeRows = nodeRows.sort((a,b) => d3.ascending(a.subModule, b.subModule) || d3.ascending(a.name, b.name));
         content = content.concat(nodeRows.map((m) => m.row));
@@ -878,13 +987,64 @@ export default async function ForceGraph(
       .style("top", 150 + "px") // adjust starting point of tooltip div to minimise chance of overlap with node
       .style("left", tooltipLeft + "px")
       .style("visibility", (expandedAll && !mouseover) || config.selectedNodeNames.length === 0 ? "hidden" :"visible");
+
+    d3.selectAll(".nodeTableRow")
+      .style("cursor", function () {
+        return nodeTableMapper[this.id] && nodeTableMapper[this.id] !== "" ? "pointer" : "default"
+      })
+      .attr("pointer-events", function ()  {
+        return nodeTableMapper[this.id] && nodeTableMapper[this.id] !== "" ? "all" : "none"
+      })
+      .on("mouseover mousemove", (event) => {
+        const id = event.currentTarget.id;
+        if(nodeTableMapper[id] && nodeTableMapper[id] !== ""){
+          showTooltipExtra(event.x, event.y, nodeTableMapper[id])
+
+        }
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
+
   }
   //////////////////////////////////////////////////////////////////////////////
 
+  const measureWidth = (text, fontSize) => {
+    const context = document.createElement("canvas").getContext("2d");
+    context.font = `${fontSize}px Arial`;
+    return context.measureText(text).width;
+  }
+  const showTooltipExtra = (x, y,textContent) => {
+    const textWidth = measureWidth(textContent,16);
+    let tooltipLeft = x - (textWidth/2);
+    if((x + textWidth) > width){
+      tooltipLeft = x - textWidth;
+    }
+    if((x - textWidth) < 0){
+      tooltipLeft = x;
+    }
+    let tooltipTop = y + 16;
+    if((tooltipTop + 16) > height){
+      tooltipTop = y - 30;
+    }
+    tooltipExtra.style("left", `${tooltipLeft}px`)
+      .style("font-size", "10px")
+      .style("top",`${tooltipTop}px`)
+      .style("visibility", "visible")
+      .text(textContent)
+
+  }
   function updateButtons(graph) {
     const hideSingleButton = d3.select("#hide-single-button");
 
     hideSingleButton.style("color", config.showSingleNodes ?  "#808080" : "white")
+      .style("cursor","pointer")
+      .on("mouseover mousemove", (event) => {
+        showTooltipExtra(event.x, event.y, config.showSingleNodes ? "hide single nodes" : "show single nodes")
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
       .on("click", () => {
         config.setShowSingleNodes(!config.showSingleNodes);
         hideSingleButton.style("color", config.showSingleNodes ?  "#808080" : "white");
@@ -893,20 +1053,61 @@ export default async function ForceGraph(
 
     const showArrowsButton = d3.select("#show-arrows-button");
     showArrowsButton.style("color", config.showArrows ? "white" : "#808080")
+      .on("mouseover mousemove", (event) => {
+        showTooltipExtra(event.x, event.y, config.showArrows ? "hide arrows" : "show arrows")
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
       .on("click", () => {
         config.setShowArrows(!config.showArrows);
       showArrowsButton.style("color", config.showArrows ? "white" : "#808080");
       updatePositions(false);
       });
 
+
+    const layoutButton = d3.select("#layout-button");
+
+    layoutButton
+      .on("mouseover mousemove", (event) => {
+        showTooltipExtra(event.x, event.y, "toggle layouts")
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
+
     const degreeSlider =   d3.select("#nnDegree");
 
     // Listen for 'input' event to capture real-time changes
     degreeSlider.on("input", function() {
       config.setNearestNeighbourDegree(this.value);
-      positionNearestNeighbours(graph);
+      d3.select("#nnDegreeValue").html(this.value);
+      if(config.nearestNeighbourOrigin !== ""){
+        positionNearestNeighbours(graph);
+      }
     });
 
+    d3.selectAll(".zoom-button")
+      .on("mouseover mousemove", (event) => {
+        showTooltipExtra(event.x, event.y, event.currentTarget.id.replace(/-/g,' '))
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
+      .on("click", (event) => {
+        const buttonId = event.currentTarget.id;
+        if(buttonId === "zoom-in"){
+          // scales are even width/height;
+          const currentScale = viewport.scale.x;
+          viewport.scale.set(currentScale * 1.1);
+        } else if(buttonId === "zoom-out"){
+          // scales are even width/height;
+          const currentScale = viewport.scale.x;
+          viewport.scale.set(currentScale * 0.9);
+        } else{
+          updatePositions(true);
+        }
+      })
     const layoutOptions = d3.selectAll(".dropdown-item")
 
     layoutOptions.style("color", (d, i, objects) => {
@@ -915,22 +1116,38 @@ export default async function ForceGraph(
       .on("click", (event) => {
         const newLayout = event.currentTarget.id;
       config.setCurrentLayout(newLayout);
+      d3.select("#search-input").property("value","");
+      d3.select("#search-tab-container").style("height","auto");
+        d3.select("#noShortestPathMessage").style("visibility","hidden");
       if(newLayout === "default"){
         d3.select("#view").style("display","block");
-        d3.select("#tabbed-component").style("display","block");
+        d3.select("#tabbed-component").classed("hidden",window.innerWidth < 1000 );
+        d3.select("#showInfo").classed("hidden",window.innerWidth >= 1000);
+        d3.select("#hideInfo").classed("hidden",window.innerWidth < 1000);
         d3.selectAll(".viewButton").style("opacity",1);
         d3.select("#nnDegreeDiv").style("display","none");
         d3.selectAll("#search-input").attr("placeholder","Search for variables");
         d3.select("#hide-single-button").style("cursor","pointer").attr("disabled",false);
+        d3.select('#search-container-sp-end').style("display","none");
+        resetDefaultNodes();
       } else {
+        config.setNotDefaultSelectedNodeNames([]);
+        config.setNotDefaultSelectedLinks([]);
         d3.select("#view").style("display","none");
-        d3.select("#tabbed-component").style("display","none");
-        d3.select("#tabbed-component").style("display","none");
+        d3.select("#tabbed-component").classed("hidden",true);
         d3.selectAll(".viewButton").style("opacity",0);
         d3.select("#hide-single-button").style("cursor","not-allowed").attr("disabled",true);
         if(config.currentLayout === "nearestNeighbour"){
+          d3.select('#search-container-sp-end').style("display","none");
           d3.select("#nnDegreeDiv").style("display","block");
-          d3.selectAll("#search-input").attr("placeholder","Search for origin node");
+          d3.selectAll("#search-container").attr("placeholder","Search for origin node");
+        }
+        if(config.currentLayout === "shortestPath"){
+          d3.select('#search-container-sp-end').style("display","block");
+          d3.select("#search-input-sp-end").property("value","");
+          d3.select("#search-tab-container").style("height","90px");
+          d3.select("#nnDegreeDiv").style("display","none");
+          d3.selectAll("#search-input").attr("placeholder","Search for start node");
         }
       }
         layoutOptions.style("color", (d, i, objects) => {
@@ -939,21 +1156,19 @@ export default async function ForceGraph(
         updatePositions(false);
     });
   }
-  function updateSearch(variableData, graph) {
+  function updateSearch(variableData, graph, extraIdString) {
 
     if(!graph) graph = initGraphologyGraph(showEle.nodes, showEle.links);
 
-    const searchInput = document.getElementById("search-input");
-    const suggestionsContainer = document.getElementById("suggestions-container");
+    const searchInput = document.getElementById(`search-input${extraIdString}`);
+    const suggestionsContainer = document.getElementById(`suggestions-container${extraIdString}`);
 
-    d3.selectAll("#search-tab-container").on("mouseover", function (event) {
-      event.stopPropagation();
-    })
-    d3.selectAll("#search-input").on("mouseover mouseout wheel", (event) => {
+
+    d3.selectAll(`search-input${extraIdString}`).on("wheel", (event) => {
       event.stopPropagation();
     })
 
-    d3.selectAll("#suggestions-container").on("mouseover mouseout wheel", (event) => {
+    d3.selectAll(`suggestions-container${extraIdString}`).on("wheel", (event) => {
       event.stopPropagation();
     })
 
@@ -965,8 +1180,10 @@ export default async function ForceGraph(
       // from Chat GPT (with some help)
 
       // If you want exact matches to come at the very top, you can filter first for exact matches
-      const exactMatches = result.filter(m => m.item.NAME.startsWith(input));
-      const nonExactMatches = result.filter(m => !m.item.NAME.startsWith(input)).sort((a,b) => d3.ascending(a.item.NAME, b.item.NAME));
+      const exactMatches = result.filter(m => m.item.NAME.toLowerCase().startsWith(input.toLowerCase()));
+      const nonExactMatches = result.filter(m => !m.item.NAME.startsWith(input))
+        .sort((a,b) => a.item.NAME.toLowerCase().localeCompare(b.item.NAME.toLowerCase()));
+
 
       // Combine exact matches with non-exact matches
       const finalResults = [...exactMatches, ...nonExactMatches];
@@ -992,7 +1209,7 @@ export default async function ForceGraph(
           suggestionsContainer.style.display = "none";
 
           if (showEle.nodes.find((n) => n.NAME === item.NAME)) {
-              clickNode(item.NAME, "search", graph);
+              clickNode(item.NAME, `search${extraIdString}`, graph);
               if(config.currentLayout === "default"){
                 searchInput.value = "";
               }
