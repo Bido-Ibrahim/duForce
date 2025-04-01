@@ -1,22 +1,79 @@
 // config.js
 export const config = {
   // Mutable constants
+  currentLayout: "default",
+  showSingleNodes: true,
+  showArrows: false,
   initialLoadComplete: false,
+  allNodeNames: [],
   expandedTreeData: {}, // stored for collapseAll button
   collapsedTreeData: {},
   currentTreeData: {}, // current tree expansion status
   tier1And2Mapper: {},
-  selectedNodeNames: [],
   subModules: [],
-  currentLayout: "default",
-  showSingleNodes: true,
-  showArrows: false,
+  selectedNodeNames: [],
+  defaultNodePositions:[],
+  notDefaultSelectedNodeNames: [],
+  notDefaultSelectedLinks: [],
+  nearestNeighbourOrigin: "",
+  nearestNeighbourDegree: 1,
+  shortestPathStart: "",
+  shortestPathEnd: "",
   // Method to update the nodes array
   setTier1And2Mapper(newObject) {
     if (typeof newObject === "object") {
       this.tier1And2Mapper = newObject;
     } else {
       console.error("Expected an array for tier1And2Mapper.");
+    }
+  },
+  setAllNodeNames(newObject) {
+    if (typeof newObject === "object") {
+      this.allNodeNames = newObject;
+    } else {
+      console.error("Expected an array for allNodeNames.");
+    }
+  },
+  setNearestNeighbourDegree(newNumber) {
+    if (typeof +newNumber === "number") {
+      this.nearestNeighbourDegree = +newNumber;
+    } else {
+      console.error("Expected an array for nearestNeighbourDegree.");
+    }
+  },
+  setDefaultNodePositions(newObject) {
+    if (typeof newObject === "object") {
+      this.defaultNodePositions = newObject;
+    } else {
+      console.error("Expected an array for defaultNodePositions.");
+    }
+  },
+  setNotDefaultSelectedLinks(newObject) {
+    if (typeof newObject === "object") {
+      this.notDefaultSelectedLinks = newObject;
+    } else {
+      console.error("Expected an array for notDefaultSelectedLinks.");
+    }
+  },
+  setNearestNeighbourOrigin(newNodeName) {
+    if (typeof newNodeName === "string") {
+      this.nearestNeighbourOrigin = newNodeName;
+    } else {
+      console.error("Expected an array for nearestNeighbourOrigin.");
+    }
+  },
+  setShortestPathStart(newNodeName) {
+    if (typeof newNodeName === "string") {
+      this.shortestPathStart = newNodeName;
+    } else {
+      console.error("Expected an array for shortestPathStart.");
+    }
+  },
+  setShortestPathEnd(newNodeName) {
+    if (typeof newNodeName === "string") {
+      this.shortestPathEnd = newNodeName;
+    } else {
+      console.error("Expected an array for shortestPathEnd.");
     }
   },
   setCollapsedTreeData(newObject) {
@@ -54,7 +111,13 @@ export const config = {
       console.error("Expected an array for setSelectedNodeName.");
     }
   },
-
+  setNotDefaultSelectedNodeNames(newArray) {
+    if (Array.isArray(newArray)) {
+      this.notDefaultSelectedNodeNames = newArray;
+    } else {
+      console.error("Expected an array for notDefaultSelectedNodeNames.");
+    }
+  },
   addToSelectedNodeNames(newName) {
     if (typeof newName === 'string') {
       if(!this.selectedNodeNames.some((s) => s === newName)){

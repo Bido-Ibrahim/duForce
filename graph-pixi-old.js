@@ -1449,6 +1449,7 @@ export default async function ForceGraph(
     const scaleY = stageHeight / boundsHeight;
     const scale = Math.min(scaleX, scaleY);  // Use the smallest scale to fit
 
+    console.log(viewport.scale, viewport.x, viewport.y);
     // Apply the scale to the container
     viewport.scale.set(scale);
 
