@@ -210,6 +210,14 @@ export default async function ForceGraph(
   let linkDataToLinkGfx = new WeakMap();
   let linkGfxToLinkData = new WeakMap();
 
+  const resetDefaultNodes = () => {
+    const previousPositions = config.defaultNodePositions;
+    showEle.nodes.map((m) => {
+      const previousNode = previousPositions[m.id];
+      m.x = previousNode.x;
+      m.y = previousNode.y;
+    })
+  }
   update(true);
 
   /////////////////////// SIMULATION-RELATED FUNCTIONS /////////////////////////
@@ -491,14 +499,7 @@ export default async function ForceGraph(
     updateButtons(graph);
 
   }
-  const resetDefaultNodes = () => {
-    const previousPositions = config.defaultNodePositions;
-    showEle.nodes.map((m) => {
-      const previousNode = previousPositions[m.id];
-      m.x = previousNode.x;
-      m.y = previousNode.y;
-    })
-  }
+
 
   const getNeighbours =(graph,nameArray, direction, nnDepth, previousNNNodes) =>  nameArray.reduce((acc, origin) => {
 
@@ -935,7 +936,10 @@ export default async function ForceGraph(
   function updateTooltip(d, mouseover,xPos) {
     let contentStr = "";
     let nodeTableMapper = {};
-    if(mouseover || config.selectedNodeNames.length === 1){
+    const defaultAndOne = config.currentLayout === "default" && config.selectedNodeNames.length === 1;
+    const otherAndOne = config.currentLayout !== "default" && config.notDefaultSelectedNodeNames.length == 1;
+    const listToShow = config.currentLayout === "default" ? config.selectedNodeNames : config.notDefaultSelectedNodeNames;
+    if(mouseover || defaultAndOne || otherAndOne){
       tooltip.style("padding","10px");
       let content = [];
       content.push(`<div style="background-color: ${d.color} "><h3 style='text-align: center' >${d.NAME}</h3></div>`); // tooltip title
@@ -954,12 +958,12 @@ export default async function ForceGraph(
       content.map((d) => (contentStr += d));
     } else if (!expandedAll) {
       let content = [];
-      if(config.selectedNodeNames.length > 0){
+       if(listToShow.length > 0){
         tooltip.style("padding","0px")
         const tableStart = "<table style='font-size: 10px; border-collapse: collapse;  width: 100%;'><thead><tr><th style='width:45%;'>SUBMODULE-SEGMENT</th><th style='width:50%;'>NAME</th><th style='width:5%'></th></tr></thead><tbody>"
         content.push(tableStart);
         let nodeRows = []
-        config.selectedNodeNames.forEach((d,i) => {
+        listToShow.forEach((d,i) => {
           const matchingNode = showEle.nodes.find((f) => f.NAME === d);
           nodeRows.push({row: `<tr><td style="background-color:${matchingNode.color}; color: white; width:50%;">${matchingNode.SUBMODULE_NAME} - ${matchingNode.SEGMENT_NAME}</td><td class="nodeTableRow" id='nodeTableRow${i}' style="width:50%;">${d}</td><td style='width:5%'> <i class='fas fa-trash'></i></td></tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
           nodeTableMapper[`nodeTableRow${i}`] = matchingNode["Parameter Explanation"];
@@ -986,7 +990,7 @@ export default async function ForceGraph(
       //.style('left', event.x - 100 + 'px')
       .style("top", 150 + "px") // adjust starting point of tooltip div to minimise chance of overlap with node
       .style("left", tooltipLeft + "px")
-      .style("visibility", (expandedAll && !mouseover) || config.selectedNodeNames.length === 0 ? "hidden" :"visible");
+      .style("visibility", (expandedAll && !mouseover) || listToShow.length === 0 ? "hidden" :"visible");
 
     d3.selectAll(".nodeTableRow")
       .style("cursor", function () {
