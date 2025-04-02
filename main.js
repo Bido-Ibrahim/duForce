@@ -1,8 +1,44 @@
 import ForceGraph from "./graph-pixi.js";
-import VariableTree from "./tree";
+import VariableTree, { getColorScale } from "./tree";
 import { config } from "./config";
+import * as d3 from "d3";
 
-let graphData = {};
+const generateParameterData = (dataNodes, dataLinks) => {
+  // moving this logic to main because
+  // only needs to be done once
+  // links used in tree.js to generate the hierarchy nodes + links
+  const  intern = (value) => value !== null && typeof value === "object" ? value.valueOf() : value;
+  // Set up accessors to enable a cleaner way of accessing data attributes
+
+  const N = d3.map(dataNodes, (d) => d["NAME"]).map(intern);
+  const LS = d3.map(dataLinks, (d) => d["UsesVariable"]).map(intern);
+  const LT = d3.map(dataLinks, (d) => d["Variable"]).map(intern);
+
+  // Replace the input nodes and links with mutable objects for the simulation
+  const nodes = d3.map(dataNodes, (d, i) => ({ id: N[i], ...d, type: "tier3" })); // tier3 indicates theses are VARIABLE nodes
+  const links = d3.map(dataLinks, (_, i) => ({
+    source: LS[i],
+    target: LT[i],
+  }));
+
+
+  // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS
+  const uniqueLinks = links.reduce((acc, link) =>  {
+    if(!acc.some((s) => s.source === link.source && s.target === link.target)){
+      const oppositeLink = acc.find((f) => f.source === link.target && f.target === link.source);
+      if(oppositeLink){
+        oppositeLink.direction = "both";
+      } else {
+        acc.push(link);
+      }
+    }
+    return acc;
+  },[]);
+
+
+  return {nodes, links: uniqueLinks};
+
+}
 async function getData() {
   try {
     // const params = {
@@ -64,11 +100,10 @@ async function getData() {
         }
       });
       resultNodesTrunc = resultNodesTrunc.filter((f) => f.SEGMENT !== null);
-
       // selected node names stored in global array (default all selected)
       config.setSelectedNodeNames(resultNodesTrunc.map((m) => m.NAME));
       // as previously, chart always renders with full dataset (stored here);
-      graphData = { nodes: resultNodesTrunc, links: resultEdges }
+      config.parameterData = generateParameterData(resultNodesTrunc,resultEdges);
       // tree is rendered first - renderGraph is called after each tree change
       VariableTree(resultNodesTrunc);
 
@@ -81,13 +116,10 @@ async function getData() {
 }
 
 export const renderGraph = (initial) => {
- if(!graphData || !graphData.nodes){
-   return;
- }
 
   // Execute the function to generate a new network
   ForceGraph(
-    graphData,
+    config.parameterData,
     {
       containerSelector: "#app",
       initial,

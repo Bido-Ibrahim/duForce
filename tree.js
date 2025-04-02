@@ -227,12 +227,57 @@ export const drawTree = () => {
       renderGraph(false);
     });
 }
+
+const setHierarchyData = (nodesCopy) => {
+  nodesCopy.descendants().filter((f) => f.depth === 2)
+    .map((m) => {
+      m.data.parameterCount = m.children.length;
+      m.children = undefined;
+      m.data.children = undefined;
+    })
+  const hierarchyNodes = nodesCopy.descendants().map((m) => m.data);
+  // repeat process with segments - save to config, pass to function
+  // save nodes + links in config
+  // ready to switch as required from main...
+  debugger;
+  const subModuleLinks = config.subModules.reduce((acc, subModule) => {
+    const otherSubmodules = config.subModules.filter((f) => f !== subModule);
+    const subModuleParameters = config.tier1And2Mapper[subModule];
+    const otherSubmoduleLinks = otherSubmodules.reduce((accOther, entry) => {
+      const entryParameters = config.tier1And2Mapper[entry];
+      const linkOut = config.parameterData.links.some((s) => subModuleParameters.includes(s.source)
+        && entryParameters.includes(s.target));
+      const linkIn = config.parameterData.links.some((s) => subModuleParameters.includes(s.target)
+        && entryParameters.includes(s.source));
+      if(linkIn & linkOut){
+        accOther.push({source: subModule, target: entry, direction: "both"})
+      } else if (linkIn){
+        accOther.push({source: subModule, target: entry, direction: "inbound"})
+      } else if (linkOut){
+        accOther.push({source: subModule, target: entry, direction: "outbound"})
+      }
+      return accOther
+    },[])
+    otherSubmoduleLinks.forEach((link) => {
+      if(!acc.some((s) => (s.source === link.source && s.target === link.target) ||
+        (s.source === link.target && s.target === link.source))){
+        acc.push(link);
+      }
+    })
+
+    return acc;
+  },[])
+  debugger;
+
+}
 export default function VariableTree(nodes) {
   // initial set up for tree and buttons above
   const selectedNodeNamesCopy = JSON.parse(JSON.stringify(config.selectedNodeNames));
   config.setAllNodeNames(selectedNodeNamesCopy);
 
   const data = getHierarchy(nodes);
+
+
   // mapping submodules and segments to their child nodes (for tree selection)
   config.tier1And2Mapper = data.descendants().filter((f) => f.data.type === "tier3").reduce((acc, entry) => {
     const {subModule, parent, NAME} = entry.data;
@@ -242,6 +287,9 @@ export default function VariableTree(nodes) {
     acc[parent].push(NAME);
     return acc;
   },{})
+
+  const nodesCopy = data.copy();
+  setHierarchyData(nodesCopy);
 
   // this could potentially be a property
   const startingDepth = 1;

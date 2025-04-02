@@ -5,6 +5,8 @@ export const config = {
   showSingleNodes: true,
   showArrows: false,
   initialLoadComplete: false,
+  parameterData: {},
+  hierarchyData: {},
   allNodeNames: [],
   expandedTreeData: {}, // stored for collapseAll button
   collapsedTreeData: {},
@@ -19,6 +21,36 @@ export const config = {
   nearestNeighbourDegree: 1,
   shortestPathStart: "",
   shortestPathEnd: "",
+  allCategoryHierarchy: {},
+  currentCategoryHierarchy: {},
+  setHierarchyData(newObject) {
+    if (typeof newObject === "object") {
+      this.hierarchyData = newObject;
+    } else {
+      console.error("Expected an array for hierarchyData.");
+    }
+  },
+  setParameterData(newObject) {
+    if (typeof newObject === "object") {
+      this.parameterData = newObject;
+    } else {
+      console.error("Expected an array for parameterData.");
+    }
+  },
+  setAllCategoryHierarchy(newObject) {
+    if (typeof newObject === "object") {
+      this.allCategoryHierarchy = newObject;
+    } else {
+      console.error("Expected an array for collapsedCategoryHierarchy.");
+    }
+  },
+  setCurrentCategoryHierarchy(newObject) {
+    if (typeof newObject === "object") {
+      this.currentCategoryHierarchy = newObject;
+    } else {
+      console.error("Expected an array for currentCategoryHierarchy.");
+    }
+  },
   // Method to update the nodes array
   setTier1And2Mapper(newObject) {
     if (typeof newObject === "object") {

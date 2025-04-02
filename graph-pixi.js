@@ -65,28 +65,15 @@ export default async function ForceGraph(
   let expandedAll = nodes.length === config.selectedNodeNames.length;
   let TOOLTIP_KEYS = ['NAME', "Parameter Explanation", "SUBMODULE_NAME", "SEGMENT_NAME"]
 
-  // Set up accessors to enable a cleaner way of accessing data attributes
-  const N = d3.map(nodes, (d) => d[nodeId]).map(intern);
-  const LS = d3.map(links, (d) => d[sourceId]).map(intern);
-  const LT = d3.map(links, (d) => d[targetId]).map(intern);
+  // saving all nodes and links
+  const showEle = {nodes, links};
 
-  // Replace the input nodes and links with mutable objects for the simulation
-  nodes = d3.map(nodes, (d, i) => ({ id: N[i], ...d, type: "tier3" })); // tier3 indicates theses are VARIABLE nodes
-  links = d3.map(links, (_, i) => ({
-    source: LS[i],
-    target: LT[i],
-  }));
-
-  // cleaner mapping of nodeDegrees and singleNodeIDs
   const nodeDegrees = nodes.reduce((acc, node) => {
     const sourceLinks = links.filter((f) => getSourceId(f) === node.id).length;
     const targetLinks = links.filter((f) => getTargetId(f) === node.id).length;
     acc[node.id] = sourceLinks + targetLinks;
     return acc;
   },{})
-  const singleNodeIDs = Object.keys(nodeDegrees).filter((f) => nodeDegrees[f] === 0);
-  // saving all nodes and links
-  const showEle = {nodes, links};
 
   const nodeRadiusScale = d3
     .scaleSqrt()
@@ -222,19 +209,6 @@ export default async function ForceGraph(
 
   /////////////////////// SIMULATION-RELATED FUNCTIONS /////////////////////////
   function update() {
-    // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS
-    const uniqueLinks = [];
-    const uniqueLinksSet = new Set();
-    for (let i = 0; i < showEle.links.length; i++) {
-      let link = showEle.links[i];
-      if (Object.keys(link).length === 0) continue;
-      const linkStr = `${getSourceId(link)}-${getTargetId(link)}`;
-      if (!uniqueLinksSet.has(linkStr) && getSourceId(link) !== getTargetId(link)) {
-        uniqueLinksSet.add(linkStr);
-        uniqueLinks.push(link);
-      }
-    }
-    showEle.links = uniqueLinks;
 
     // Set up accessors to enable a cleaner way of accessing attributes of each node and edge
     const G = nodeGroup == null ? null : d3.map(showEle.nodes, nodeGroup).map(intern);
