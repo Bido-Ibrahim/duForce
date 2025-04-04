@@ -101,6 +101,7 @@
 
       }
       #search-container{
+          top: 5px;
           z-index: 90;
       }
       #search-container-sp-end{
@@ -121,7 +122,7 @@
 
       #search-input-sp-end{
           position: absolute;
-          top: -15px;
+          top: -10px;
       }
       #suggestions-container, #suggestions-container-sp-end {
         /* position: absolute;
@@ -217,7 +218,7 @@
 
 #nnDegreeDiv{
     position: absolute;
-    top: 68px;
+    top: 83px;
     left: 12px;
     align-items: center;
     display: none;
@@ -299,7 +300,7 @@
       .dropdown-menu {
           display: none;
           position: absolute;
-          top: 65px;
+          top: 80px;
           right: 0;
           background: #333;
           border: 1px solid white;
@@ -340,17 +341,17 @@
 
       #layout-button {
           position: absolute;
-          top: 12px;
+          top: 35px;
           right: 6px;
       }
       #show-arrows-button {
           position: absolute;
-          top: 12px;
+          top: 35px;
           right: 55px;
       }
       #hide-single-button {
           position: absolute;
-          top: 12px;
+          top: 35px;
           right: 105px;
       }
 
@@ -366,7 +367,7 @@
       /* Link to show tabbed component */
       #showInfo, #hideInfo {
         position: absolute;
-        top: 53px;
+        top: 73px;
         right: 10px;
         padding: 8px 0px 0px 8px;
         cursor: pointer;
@@ -480,8 +481,25 @@
           top: calc(50vh - 40px);
           visibility: hidden;
       }
+
+      input[type="radio"] {
+          padding: 0px;
+          margin-top: 1px;
+          margin-left: 5px;
+          margin-right: 3px;
+      }
+      label {
+          display: flex;}
+      #dataRadio{
+          display: flex;
+          padding: 0;
+          margin: 0;
+          width: 300px;
+          font-size: 14px;
+          height: 18px;
+      }
     </style>
-    <script type="module" crossorigin src="/duForce/assets/index-2c3bdf0d.js"></script>
+    <script type="module" crossorigin src="/duForce/assets/index-f477ea82.js"></script>
   </head>
   <body>
     <div id="fb-root"></div>
@@ -544,7 +562,14 @@
       </div>
     </div>
     <div id="search-tab-container">
+      <div id ="dataRadio">View:
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter" checked>Parameters</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Segments</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule">SubModules</label>
+      </div>
+      <div id="parameter-menu">
       <div id="search-container">
+
         <input type="text" id="search-input" placeholder="Search for variables" />
         <div id="suggestions-container"></div>
       </div>
@@ -572,8 +597,10 @@
         <button class="dropdown-item" id="shortestPath"><i class="fas fa-wave-square"></i><span class="dropdown-span">Shortest Path</span></button>
         <button class="dropdown-item" id="nearestNeighbour"><i class="fas fa-house-user"></i><span class="dropdown-span">Nearest Neighbour</span></button>
       </div>
+       </div>
       <p class="viewButton" id="showInfo">Show info panel</p>
       <p class="viewButton" id="hideInfo" class="hidden">Hide info panel</p>
+
       <br>
       <div id="tabbed-component">
         <!-- Tab links -->

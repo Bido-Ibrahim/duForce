@@ -58,9 +58,6 @@ const getHierarchy = (nodes) => {
     },[])
 
   let data = nodes.reduce((acc, node,i) => {
-    if(i === 0) {
-      acc.push(ROOT);
-    }
       acc.push({
         parent: `segment-${node.SEGMENT}`,
         subModule: `submodule-${node.SUBMODULE}`,
@@ -71,12 +68,13 @@ const getHierarchy = (nodes) => {
     return acc;
   },[])
 
-  data = data.concat(SUBMODULES).concat(SEGMENTS);
+  data = data.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
+  const stratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(data);
 
   return d3
     .stratify()
     .id((d) => d.id)
-    .parentId((d) => d.parent)(data)
+    .parentId((d) => d.parent)(stratifyData)
     .eachBefore((d,i) => { // sort as previous
       d.data.hOrderPosition = i; // needed to keep correct order of tree menu
   });
@@ -122,7 +120,7 @@ export const drawTree = () => {
 
   const treeGroup = svg
     .selectAll(".treeGroup")
-    .data(chartData)
+    .data(chartData, (d) => d.data.hOrderPosition)
     .join((group) => {
       const enter = group.append("g").attr("class", "treeGroup");
       enter.append("text").attr("class", "treeLabel");
@@ -161,7 +159,7 @@ export const drawTree = () => {
     .attr("x",  (d) =>  iconWidthHeight + 5 + depthExtra(d.depth,15))
     .attr("y",   rowHeight/2)
     .attr("fill", (d) => colorScale(d.data.subModule))
-    .text((d) => d.data.NAME);
+    .text((d) => `${d.data.NAME}`);
 
   treeGroup.select(".verticalLine")
     .attr("x1", 0)
@@ -210,7 +208,7 @@ export const drawTree = () => {
           // tier 3 (chart nodes) - current unselected;
           config.addToSelectedNodeNames(d.data.NAME);
         }
-      } else {
+      } else if (config.graphDataType === "parameter"){
         const descendants = config.tier1And2Mapper[d.data.id];
         const selectedPath = getSelectedPath(descendants);
         if(selectedPath === allSelectedPath){
@@ -228,46 +226,54 @@ export const drawTree = () => {
     });
 }
 
-const setHierarchyData = (nodesCopy) => {
-  nodesCopy.descendants().filter((f) => f.depth === 2)
-    .map((m) => {
-      m.data.parameterCount = m.children.length;
-      m.children = undefined;
-      m.data.children = undefined;
-    })
-  const hierarchyNodes = nodesCopy.descendants().map((m) => m.data);
-  // repeat process with segments - save to config, pass to function
-  // save nodes + links in config
-  // ready to switch as required from main...
-  debugger;
-  const subModuleLinks = config.subModules.reduce((acc, subModule) => {
-    const otherSubmodules = config.subModules.filter((f) => f !== subModule);
-    const subModuleParameters = config.tier1And2Mapper[subModule];
-    const otherSubmoduleLinks = otherSubmodules.reduce((accOther, entry) => {
-      const entryParameters = config.tier1And2Mapper[entry];
-      const linkOut = config.parameterData.links.some((s) => subModuleParameters.includes(s.source)
-        && entryParameters.includes(s.target));
-      const linkIn = config.parameterData.links.some((s) => subModuleParameters.includes(s.target)
-        && entryParameters.includes(s.source));
-      if(linkIn & linkOut){
-        accOther.push({source: subModule, target: entry, direction: "both"})
-      } else if (linkIn){
-        accOther.push({source: subModule, target: entry, direction: "inbound"})
-      } else if (linkOut){
-        accOther.push({source: subModule, target: entry, direction: "outbound"})
+const getLinkDirection = (linkIn, linkOut) => {
+  if(linkIn && linkOut) return "both";
+  if(linkIn) return "inbound";
+  return "outbound";
+}
+const getHierarchyLinks = (nodeSet, allLinks) =>  Array.from(nodeSet).reduce((acc, parent) => {
+    const otherNodes = Array.from(nodeSet).filter((f) => f !== parent);
+    const nodeParameters = config.tier1And2Mapper[parent];
+     otherNodes.forEach((node) => {
+      const currentParameters = config.tier1And2Mapper[node];
+      const linkOut = allLinks.some((s) => nodeParameters.includes(s.source)
+        && currentParameters.includes(s.target));
+      const linkIn = allLinks.some((s) => nodeParameters.includes(s.target)
+        && currentParameters.includes(s.source));
+      const direction = getLinkDirection(linkIn,linkOut);
+      if(!acc.some((s) => (s.source === parent && s.target === node) ||
+        (s.source === node && s.target === parent))){
+        acc.push({source: parent, target: node, direction});
       }
-      return accOther
-    },[])
-    otherSubmoduleLinks.forEach((link) => {
-      if(!acc.some((s) => (s.source === link.source && s.target === link.target) ||
-        (s.source === link.target && s.target === link.source))){
-        acc.push(link);
-      }
-    })
+      })
+  return acc;
+},[])
 
-    return acc;
-  },[])
-  debugger;
+
+const setHierarchyData = (nodesCopy) => {
+  const subModuleNames = new Set();
+  const segmentNames = new Set();
+  nodesCopy.descendants()
+    .map((m) => {
+      if(m.depth === 2){
+        m.data.parameterCount = m.children.length;
+        m.children = undefined;
+        m.data.children = undefined;
+        segmentNames.add(m.data.id);
+      }
+      if(m.depth === 1){
+        m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
+        subModuleNames.add(m.data.id);
+      }
+    })
+  const subModuleLinks = getHierarchyLinks(subModuleNames,config.parameterData.links);
+  const segmentLinks = getHierarchyLinks(segmentNames,config.parameterData.links);
+  const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1).map((m) => m.data);
+  const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2).map((m) => m.data);
+
+  config.setHierarchyData(
+    {submodule: {nodes: subModuleNodes, links: subModuleLinks, nodeNames: Array.from(subModuleNames)},
+      segment:{nodes: segmentNodes, links: segmentLinks, nodeNames: Array.from(segmentNames)}})
 
 }
 export default function VariableTree(nodes) {
@@ -290,6 +296,18 @@ export default function VariableTree(nodes) {
 
   const nodesCopy = data.copy();
   setHierarchyData(nodesCopy);
+
+
+  d3.selectAll(".chartDataRadio")
+    .on("change", (event) =>  {
+      config.graphDataType = event.currentTarget.value;
+      const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
+      const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
+      config.setSelectedNodeNames(nodeNamesCopy);
+      svg.select(`.${treeDivId}_selectButton`)
+        .attr("visibility", config.graphDataType === "parameter" ? "visible" : "hidden")
+      renderGraph(config.graphDataType !== "parameter");
+  });
 
   // this could potentially be a property
   const startingDepth = 1;
@@ -367,18 +385,20 @@ export default function VariableTree(nodes) {
     .attr("dominant-baseline","middle")
     .text("unselect ALL")
     .on("click",(event) => {
-      const text = d3.select(event.currentTarget).text();
-      const newText = text === "select ALL" ? "unselect ALL" : "select ALL"
-      d3.select(event.currentTarget).text(newText);
-      if(text === "select ALL"){
-        // add all names to selected nodes
-        config.setSelectedNodeNames(selectedNodeNamesCopy);
-      } else {
-        // clear selected nodes
-        config.setSelectedNodeNames([]);
+      if(config.graphDataType === "parameter"){
+        const text = d3.select(event.currentTarget).text();
+        const newText = text === "select ALL" ? "unselect ALL" : "select ALL"
+        d3.select(event.currentTarget).text(newText);
+        if(text === "select ALL"){
+          // add all names to selected nodes
+          config.setSelectedNodeNames(selectedNodeNamesCopy);
+        } else {
+          // clear selected nodes
+          config.setSelectedNodeNames([]);
+        }
+        drawTree();
+        renderGraph(false);
       }
-      drawTree();
-      renderGraph(false);
     });
 
   svg.select(`.${treeDivId}_collapseButton`)

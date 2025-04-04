@@ -1,6 +1,7 @@
 // config.js
 export const config = {
   // Mutable constants
+  graphDataType: "parameter",
   currentLayout: "default",
   showSingleNodes: true,
   showArrows: false,
