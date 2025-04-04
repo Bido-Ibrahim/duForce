@@ -17,11 +17,6 @@ export default async function ForceGraph(
   {
     containerSelector, // id or class selector of DIV to render the graph in
     initial = true,
-    nodeId = "id", // given d in nodes, returns a unique identifier (string)
-    sourceId = "source", // given d in links, returns a uinique source node identifier (string)
-    targetId = "target", // given d in links, returns a uinique target node identifier (string)
-    nodeGroup, // given d in nodes, returns an (ordinal) value for color
-    nodeGroups, // an array of ordinal values representing the node groups
     nodeRadius,
     nodeFill = "0xFFFFFF", // node stroke fill (if not using a group color encoding)
     nodeStroke = "0xFFFFFF", // node stroke color
@@ -65,32 +60,22 @@ export default async function ForceGraph(
   let expandedAll = nodes.length === config.selectedNodeNames.length;
   let TOOLTIP_KEYS = ['NAME', "Parameter Explanation", "SUBMODULE_NAME", "SEGMENT_NAME"]
 
-  // Set up accessors to enable a cleaner way of accessing data attributes
-  const N = d3.map(nodes, (d) => d[nodeId]).map(intern);
-  const LS = d3.map(links, (d) => d[sourceId]).map(intern);
-  const LT = d3.map(links, (d) => d[targetId]).map(intern);
+  // saving all nodes and links
+  const showEle = {nodes, links};
 
-  // Replace the input nodes and links with mutable objects for the simulation
-  nodes = d3.map(nodes, (d, i) => ({ id: N[i], ...d, type: "tier3" })); // tier3 indicates theses are VARIABLE nodes
-  links = d3.map(links, (_, i) => ({
-    source: LS[i],
-    target: LT[i],
-  }));
-
-  // cleaner mapping of nodeDegrees and singleNodeIDs
   const nodeDegrees = nodes.reduce((acc, node) => {
     const sourceLinks = links.filter((f) => getSourceId(f) === node.id).length;
     const targetLinks = links.filter((f) => getTargetId(f) === node.id).length;
     acc[node.id] = sourceLinks + targetLinks;
     return acc;
   },{})
-  const singleNodeIDs = Object.keys(nodeDegrees).filter((f) => nodeDegrees[f] === 0);
-  // saving all nodes and links
-  const showEle = {nodes, links};
+
+
+  const radiusMax = config.graphDataType === "parameter" ? d3.max(Object.values(nodeDegrees)) : d3.max(showEle.nodes, (d) => d.parameterCount)
 
   const nodeRadiusScale = d3
     .scaleSqrt()
-    .domain(nodeRadius ? d3.extent(nodes, nodeRadius) : [0, d3.max(Object.values(nodeDegrees))])
+    .domain(nodeRadius ? d3.extent(nodes, nodeRadius) : [0, radiusMax])
     .range([nodeMinSize, nodeMinSize * 3])
     .clamp(true);
 
@@ -120,6 +105,7 @@ export default async function ForceGraph(
       event.stopPropagation(); // Prevent the scroll event from affecting other elements
     });
 
+
   // Initialize simulation
   const simulation = d3
     .forceSimulation()
@@ -134,73 +120,75 @@ export default async function ForceGraph(
 
   simulation.stop();
 
-  // Create PIXI application
-  const app = new PIXI.Application({
-    width,
-    height,
-    resolution: 2,
-    transparent: true,
-    antialias: true,
-    autoDensity: true,
-    autoStart: true,
-  });
+    // Create PIXI application
+    const app = new PIXI.Application({
+      width,
+      height,
+      resolution: 2,
+      transparent: true,
+      antialias: true,
+      autoDensity: true,
+      autoStart: true,
+    });
 
-  // Add the view to the DOM
-  document.querySelector(containerSelector).appendChild(app.view);
+    // Add the view to the DOM
+    document.querySelector(containerSelector).appendChild(app.view);
 
-  // create PIXI viewport
-  const viewport = new Viewport({
-    screenWidth: width,
-    screenHeight: height,
-    worldWidth: width,
-    worldHeight: height,
-    events: app.renderer.events,
-  });
-  // Enable interaction of the canvas
-  app.stage.eventMode = "static";
-  app.stage.hitArea = app.screen;
+    // create PIXI viewport
+    const viewport = new Viewport({
+      screenWidth: width,
+      screenHeight: height,
+      worldWidth: width,
+      worldHeight: height,
+      events: app.renderer.events,
+    });
+    // Enable interaction of the canvas
+    app.stage.eventMode = "static";
+    app.stage.hitArea = app.screen;
 
-  // Interactivity with the canvas itself
-  const dragEnd = () => {
-    app.stage.off("pointermove");
-    viewport.pause = false;
-  };
-  app.stage.on("pointerup", dragEnd);
-  app.stage.on("pointerupoutside", dragEnd);
+    // Interactivity with the canvas itself
+    const dragEnd = () => {
+      app.stage.off("pointermove");
+      viewport.pause = false;
+    };
+    app.stage.on("pointerup", dragEnd);
+    app.stage.on("pointerupoutside", dragEnd);
 
-  app.stage.addChild(viewport);
+    app.stage.addChild(viewport);
 
-  viewport.drag().pinch().wheel().decelerate().clampZoom({ minScale: 0.2, maxScale: 5 });
-  // To shift the graph to the middle of the screen, because d3 force simulation naturally renders graph with start position at (0,0)
-  viewport.center = new PIXI.Point(0, 0);
+    viewport.drag().pinch().wheel().decelerate().clampZoom({ minScale: 0.2, maxScale: 5 });
+    // To shift the graph to the middle of the screen, because d3 force simulation naturally renders graph with start position at (0,0)
+    viewport.center = new PIXI.Point(0, 0);
 
-  // build PIXI textures
-  const circleGraphics = new PIXI.Graphics();
-  circleGraphics.beginFill(nodeFill);
-  circleGraphics.lineStyle(nodeStrokeWidth, nodeStroke, nodeStrokeOpacity);
-  circleGraphics.drawCircle(0, 0, 44);
-  const circleTexture = app.renderer.generateTexture(circleGraphics, {
-    resolution: 2,
-  });
+    // build PIXI textures
+    const circleGraphics = new PIXI.Graphics();
+    circleGraphics.beginFill(nodeFill);
+    circleGraphics.lineStyle(nodeStrokeWidth, nodeStroke, nodeStrokeOpacity);
+    circleGraphics.drawCircle(0, 0, 44);
+    const circleTexture = app.renderer.generateTexture(circleGraphics, {
+      resolution: 2,
+    });
 
-  const triangle = new PIXI.Graphics();
-  let triangleWidth = 12;
-  triangle.beginFill("#A0A0A0", 1);
-  triangle.lineStyle(0, "#A0A0A0", 1);
-  triangle.moveTo(-triangleWidth, 0);
-  triangle.lineTo(triangleWidth, triangleWidth);
-  triangle.lineTo(triangleWidth, -triangleWidth);
-  triangle.endFill();
-  const triangleTexture = app.renderer.generateTexture(triangle, {
-    resolution: 2,
-  });
+    const triangle = new PIXI.Graphics();
+    let triangleWidth = 12;
+    triangle.beginFill("#A0A0A0", 1);
+    triangle.lineStyle(0, "#A0A0A0", 1);
+    triangle.moveTo(-triangleWidth, 0);
+    triangle.lineTo(triangleWidth, triangleWidth);
+    triangle.lineTo(triangleWidth, -triangleWidth);
+    triangle.endFill();
+    const triangleTexture = app.renderer.generateTexture(triangle, {
+      resolution: 2,
+    });
 
-  const linksLayer = new PIXI.Container();
-  viewport.addChild(linksLayer);
-  const nodesLayer = new PIXI.Container();
-  viewport.addChild(nodesLayer);
-  const labelsLayer = new PIXI.Container();
-  viewport.addChild(labelsLayer);
+    const linksLayer = new PIXI.Container();
+    viewport.addChild(linksLayer);
+    const nodesLayer = new PIXI.Container();
+    viewport.addChild(nodesLayer);
+    const labelsLayer = new PIXI.Container();
+    viewport.addChild(labelsLayer);
+
+
 
   // To store state/data of Pixi.JS graphics
   let nodeDataToNodeGfx = new WeakMap();
@@ -222,38 +210,26 @@ export default async function ForceGraph(
 
   /////////////////////// SIMULATION-RELATED FUNCTIONS /////////////////////////
   function update() {
-    // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS
-    const uniqueLinks = [];
-    const uniqueLinksSet = new Set();
-    for (let i = 0; i < showEle.links.length; i++) {
-      let link = showEle.links[i];
-      if (Object.keys(link).length === 0) continue;
-      const linkStr = `${getSourceId(link)}-${getTargetId(link)}`;
-      if (!uniqueLinksSet.has(linkStr) && getSourceId(link) !== getTargetId(link)) {
-        uniqueLinksSet.add(linkStr);
-        uniqueLinks.push(link);
-      }
-    }
-    showEle.links = uniqueLinks;
 
-    // Set up accessors to enable a cleaner way of accessing attributes of each node and edge
-    const G = nodeGroup == null ? null : d3.map(showEle.nodes, nodeGroup).map(intern);
-    const W = typeof linkStrokeWidth !== "function" ? null : d3.map(showEle.links, linkStrokeWidth);
-    const L = typeof linkStroke !== "function" ? null : d3.map(showEle.links, linkStroke);
-    if (G && nodeGroups === undefined) nodeGroups = d3.sort(G);
     const color = getColorScale();
 
-    for (let i = 0; i < showEle.nodes.length; i++) {
-      let node = showEle.nodes[i];
-      node.linkCnt = nodeDegrees[node.id] || 0;
-      node.color = G ? color(G[i]) : nodeFill;
-      node.radius = nodeRadiusScale(node.linkCnt);
-    }
+    showEle.nodes = showEle.nodes.reduce((acc, node) => {
+      if(config.graphDataType !== "parameter"){
+        node.id = node.NAME;
+      }
+      node.radiusVar = config.graphDataType === "parameter" ? nodeDegrees[node.id] : node.parameterCount;
+      node.color = color(node.subModule);
+      node.radius = nodeRadiusScale(node.radiusVar);
+      acc.push(node);
+      return acc;
+    },[])
+
+
 
     for (let i = 0; i < showEle.links.length; i++) {
       let link = showEle.links[i];
-      link.linkStroke = L ? L[i] : linkStroke;
-      link.linkStrokeWidth = W ? W[i] : linkStrokeWidth;
+      link.linkStroke = linkStroke;
+      link.linkStrokeWidth = linkStrokeWidth;
     }
     console.log("elements on screen", showEle);
     // Stores graph in a Graphology object just for the shortest path and nearest neighbour calculations
@@ -475,13 +451,16 @@ export default async function ForceGraph(
       // Run the simulation to its end, then draw.
       simulation.alphaTarget(0.1).restart();
 
-      simulation.tick(Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())));
+      const tickTime = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
+      simulation.tick(tickTime);
       simulation.stop();
-      const defaultNodePositions = showEle.nodes.reduce((acc, node) => {
-        acc[node.id] =  { x: node.x, y: node.y};
-        return acc
-      },{})
-      config.setDefaultNodePositions(defaultNodePositions)
+      if(config.graphDataType === "parameter"){
+        const defaultNodePositions = showEle.nodes.reduce((acc, node) => {
+          acc[node.id] =  { x: node.x, y: node.y};
+          return acc
+        },{})
+        config.setDefaultNodePositions(defaultNodePositions)
+      }
       updatePositions(true);
     }
 
@@ -876,7 +855,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.linkCnt) ** 2;
+      let k = nodeRadiusScale(d.radiusVar) ** 2;
       x += d.x * k;
       y += d.y * k;
       z += k;
@@ -888,12 +867,11 @@ export default async function ForceGraph(
     var strength = 0.8;
     let nodes;
     function force(alpha) {
-      const centroids = d3.rollup(nodes, centroid, nodeGroup);
+      const centroids = d3.rollup(nodes, centroid, (r) => r.subModule);
       const l = alpha * strength;
       for (const d of nodes) {
-
         //if (d.type !== "tier1" && d.type !== "tier2") {
-        const { x: cx, y: cy } = centroids.get(`submodule-${d.SUBMODULE}`);
+        const { x: cx, y: cy } = centroids.get(d.subModule);
         d.vx -= (d.x - cx) * l;
         d.vy -= (d.y - cy) * l;
         //}
@@ -1144,12 +1122,13 @@ export default async function ForceGraph(
         if(config.currentLayout === "nearestNeighbour"){
           d3.select('#search-container-sp-end').style("display","none");
           d3.select("#nnDegreeDiv").style("display","block");
+          d3.select("#search-tab-container").style("height","110px");
           d3.selectAll("#search-container").attr("placeholder","Search for origin node");
         }
         if(config.currentLayout === "shortestPath"){
           d3.select('#search-container-sp-end').style("display","block");
           d3.select("#search-input-sp-end").property("value","");
-          d3.select("#search-tab-container").style("height","90px");
+          d3.select("#search-tab-container").style("height","120px");
           d3.select("#nnDegreeDiv").style("display","none");
           d3.selectAll("#search-input").attr("placeholder","Search for start node");
         }

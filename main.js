@@ -1,8 +1,52 @@
-import ForceGraph from "./graph-pixi.js";
-import VariableTree from "./tree";
+import ForceGraph from "./graph-d3.js";
+import VariableTree, { getColorScale } from "./tree";
 import { config } from "./config";
+import * as d3 from "d3";
 
-let graphData = {};
+const generateParameterData = (dataNodes, dataLinks) => {
+  // building nodes and links here
+  const nodeIdVar = "NAME";
+  const sourceIdVar = "UsesVariable";
+  const targetIdVar = "Variable";
+
+  const nodes = dataNodes.reduce((acc, node) => {
+    node.id = node[nodeIdVar];
+    node.type = "tier3";
+    node.subModule = `submodule-${node.SUBMODULE}`
+    acc.push(node);
+    return acc;
+  }, [])
+
+  const links = dataLinks.reduce((acc, link) =>  {
+    link.source = link[sourceIdVar];
+    link.target = link[targetIdVar];
+    // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS and set direction
+    if(!acc.some((s) => s.source === link.source && s.target === link.target)){
+      const oppositeLink = acc.find((f) => f.source === link.target && f.target === link.source);
+      if(oppositeLink){
+        oppositeLink.direction = "both";
+      } else {
+        acc.push(link);
+      }
+    }
+    return acc;
+  },[]);
+
+  return {nodes, links};
+
+}
+
+const dataNullValueCheck = (nodeData, dataType) => {
+  nodeData.filter((f) => f[dataType] === null).map((m) => {
+    const matching = nodeData.find((f) => f[`${dataType}_NAME`] === m[`${dataType}_NAME`]);
+    if(matching){
+      m[dataType] = matching[dataType];
+    } else {
+      console.error(`${JSON.stringify(m)} has missing ${dataType} data`);
+    }
+  });
+  return nodeData.filter((f) => f[dataType] !== null);
+}
 async function getData() {
   try {
     // const params = {
@@ -12,6 +56,8 @@ async function getData() {
     //     "Content-Type": "application/json",
     //   },
     // };
+    config.setInitialLoadComplete(true);
+    console.log('call get data')
 
     console.log('Base URL:', import.meta.env.BASE_URL);
     console.log('Current URL:', window.location.href);
@@ -41,34 +87,12 @@ async function getData() {
           ...d
         };
       });
-      config.setInitialLoadComplete(true);
-      // data handling - maybe best to do this in main.js?
-      // handling data with null SUBMODULE
-      resultNodesTrunc.filter((f) => f.SUBMODULE === null).map((m) => {
-        const matching = resultNodesTrunc.find((f) => f.SUBMODULE_NAME === m.SUBMODULE_NAME);
-        if(matching){
-          m.SUBMODULE = matching.SUBMODULE;
-        } else {
-          console.error(`${JSON.stringify(m)} has missing SUBMODULE data`);
-        }
-      });
-      resultNodesTrunc = resultNodesTrunc.filter((f) => f.SUBMODULE !== null);
-
-      // handling data with null SUBMODULE
-      resultNodesTrunc.filter((f) => f.SEGMENT === null).map((m) => {
-        const matching = resultNodesTrunc.find((f) => f.SUBMODULE === m.SUBMODULE && m.SEGMENT_NAME === f.SEGMENT_NAME);
-        if(matching){
-          m.SEGMENT = matching.SEGMENT;
-        } else {
-          console.error(`${JSON.stringify(m)} has missing SEGMENT data`);
-        }
-      });
-      resultNodesTrunc = resultNodesTrunc.filter((f) => f.SEGMENT !== null);
-
+      resultNodesTrunc = dataNullValueCheck(resultNodesTrunc,"SUBMODULE");
+      resultNodesTrunc = dataNullValueCheck(resultNodesTrunc,"SEGMENT");
       // selected node names stored in global array (default all selected)
       config.setSelectedNodeNames(resultNodesTrunc.map((m) => m.NAME));
       // as previously, chart always renders with full dataset (stored here);
-      graphData = { nodes: resultNodesTrunc, links: resultEdges }
+      config.parameterData = generateParameterData(resultNodesTrunc,resultEdges);
       // tree is rendered first - renderGraph is called after each tree change
       VariableTree(resultNodesTrunc);
 
@@ -80,10 +104,14 @@ async function getData() {
   }
 }
 
+const getGraphData = () => {
+  if(config.graphDataType === "parameter") return config.parameterData;
+  if(config.graphDataType === "segment") return config.hierarchyData["segment"];
+  return config.hierarchyData["submodule"];
+}
 export const renderGraph = (initial) => {
- if(!graphData || !graphData.nodes){
-   return;
- }
+
+  const graphData = getGraphData();
 
   // Execute the function to generate a new network
   ForceGraph(
@@ -94,10 +122,9 @@ export const renderGraph = (initial) => {
       nodeId: "NAME",
       sourceId: "UsesVariable",
       targetId: "Variable",
-      nodeGroup: (d) => `submodule-${d.SUBMODULE}`,
       nodeTitle: (d) => d.NAME,
       nodeStroke: "#000",
-      linkStroke: "#fff",
+      linkStroke: "#D0D0D0",
       labelColor: "#fff",
       width: window.innerWidth,
       height: window.innerHeight,
