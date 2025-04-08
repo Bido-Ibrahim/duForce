@@ -182,6 +182,7 @@ export const drawTree = () => {
     .attr("fill", "#F0F0F0");
 
   treeGroup.select(".selectedCheckboxIcon")
+    .style("display",config.graphDataType === "parameter" ? "block" : "none")
     .attr("width",  (d) => iconWidthHeight - depthExtra(d.depth,2))
     .attr("height",(d) => iconWidthHeight - depthExtra(d.depth,2))
     .attr("viewBox",standardViewBox)
@@ -304,8 +305,12 @@ export default function VariableTree(nodes) {
       const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
       const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
       config.setSelectedNodeNames(nodeNamesCopy);
-      svg.select(`.${treeDivId}_selectButton`)
-        .attr("visibility", config.graphDataType === "parameter" ? "visible" : "hidden")
+      svg.selectAll(`.${treeDivId}_selectButton`)
+        .attr("visibility", config.graphDataType === "parameter" ? "visible" : "hidden");
+      svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
+        svg.selectAll(".selectedCheckboxIconPath")
+        .attr("d", (d) => getSelectedPath(d.data.type === "tier3" ? [d.data.NAME] : config.tier1And2Mapper[d.data.id]))
+
       renderGraph(config.graphDataType !== "parameter");
   });
 
