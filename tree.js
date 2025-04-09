@@ -27,6 +27,8 @@ const getHierarchy = (nodes) => {
           NAME: entrySplit[1],
           type: "tier1",
         });
+      } else {
+        console.error(`${entry} is being filtered out as this subModule ID has been used previously with a different subModule Name`)
       }
       return acc;
     },[])
@@ -53,6 +55,8 @@ const getHierarchy = (nodes) => {
           NAME: entrySplit[1],
           type: "tier2",
         });
+      } else {
+        console.error(`${segmentId} with submodule ${parent} is being filtered out as this segmentId has been used previously with a different Segment Name`)
       }
       return acc;
     },[])
