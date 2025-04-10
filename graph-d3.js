@@ -625,9 +625,13 @@ export default async function ForceGraph(
       return label ? 0 : 0.2;
     }
 
-    const checkLinkSelected = (link) => config.currentLayout === "default" &&
-      config.selectedNodeNames.includes(getSourceId(link)) &&
-      config.selectedNodeNames.includes(getTargetId(link))
+    const checkLinkSelected = (link) => {
+      if(config.currentLayout === "default"){
+        return config.selectedNodeNames.includes(getSourceId(link)) &&
+          config.selectedNodeNames.includes(getTargetId(link))
+      }
+      return true;
+    }
 
     const getLinkAlpha = (link, linkLength) => {
       const linkOpacity = linkLength > 100 ? 0.4 : 0.6;
