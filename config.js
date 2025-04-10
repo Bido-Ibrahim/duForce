@@ -4,7 +4,7 @@ export const config = {
   graphDataType: "parameter",
   currentLayout: "default",
   showSingleNodes: true,
-  showArrows: false,
+  showArrows: true,
   initialLoadComplete: false,
   parameterData: {},
   hierarchyData: {},
