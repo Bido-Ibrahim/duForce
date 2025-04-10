@@ -126,8 +126,9 @@ export default async function ForceGraph(
   // tooltipExtra is for the button tooltips and the parameters in tooltip multi select view
   let baseSvg = d3.select(containerSelector).select("svg");
   if (baseSvg.node() === null) {
-    baseSvg = d3.select(containerSelector).append("svg").attr("width", width).attr("height", height);
+    baseSvg = d3.select(containerSelector).append("svg").attr("class","baseSvg").attr("width", width).attr("height", height);
     const actualSvg = baseSvg.append("g").attr("class", "chartGroup")
+    actualSvg.append("g").attr("class", "nnGroup")
     actualSvg.append("g").attr("class", "linkGroup");
     actualSvg.append("g").attr("class", "nodeGroup");
     const defs = actualSvg.append("defs");
@@ -167,15 +168,26 @@ export default async function ForceGraph(
     .attr("d", "M1, -4L9,0L1,4") // M9,-4L1,0L9,4 (start)
 
 
+
   let currentZoomLevel = 1;
+
+  const getNodeLabelDisplay = (d) => {
+    if(config.graphDataType !== "parameter" || config.currentLayout === "shortestPath") return "block";
+    if(config.currentLayout === "default"){
+      return currentZoomLevel > 3 ? "block":"none";
+    }
+    return config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin ? "block" : "none";
+
+  }
+
   const zoom = d3
     .zoom()
     .on("zoom", (event) => {
       const { x, y, k } = event.transform;
       currentZoomLevel = k;
       svg.attr("transform", `translate(${x},${y}) scale(${k})`);
-      if(config.currentLayout === "default" && config.graphDataType === "parameter"){
-        svg.selectAll(".nodeLabel").style("display",currentZoomLevel > 3 ? "block":"none");
+      if(config.graphDataType === "parameter"){
+        svg.selectAll(".nodeLabel").style("display",getNodeLabelDisplay);
       }
     });
 
@@ -186,12 +198,12 @@ export default async function ForceGraph(
     const [xExtent0, xExtent1] = d3.extent(currentNodes, (d) => d.fx || d.x);
     const [yExtent0, yExtent1] = d3.extent(currentNodes, (d) => d.fy || d.y);
     if (xExtent0 && xExtent1 && yExtent0 && yExtent1) {
-        let xWidth = xExtent1 - xExtent0 + 20;
-      let yWidth = yExtent1 - yExtent0 + 20;
+        let xWidth = xExtent1 - xExtent0 + (currentNodes.length === 1 ? 250 : 100);
+      let yWidth = yExtent1 - yExtent0 + (currentNodes.length === 1 ? 250 : 100);
 
       const translateX = -(xExtent0 + xExtent1) / 2;
       const translateY = -(yExtent0 + yExtent1) / 2;
-      const fitToScale = 0.95 / Math.max(xWidth / width, yWidth / height);
+      const fitToScale = 0.9 / Math.max(xWidth / width, yWidth / height);
       return {translateX, translateY, fitToScale};
     }
     return {translateX: 0, translateY: 0, fitToScale: 1};
@@ -217,7 +229,7 @@ export default async function ForceGraph(
           d3.zoomIdentity
             .translate(width / 2, height / 2)
             .scale(fitToScale)
-            .translate(translateX, translateY),
+            .translate(translateX,  translateY)
         );
     }
   };
@@ -271,34 +283,35 @@ export default async function ForceGraph(
   updateSearch(showEle.nodes, graph, "-sp-end")
   updateButtons(graph);
 
-  const getNeighbours =(graph,nameArray, direction, nnDepth, previousNNNodes) =>  nameArray.reduce((acc, origin) => {
+  const getNeighbours =(nameArray, direction, nnDepth, previousNNNodes) =>  nameArray.reduce((acc, origin) => {
 
-    bfsFromNode(graph, origin, function (node, attr, depth) {
-        if (depth <= 1 && node !== origin && !previousNNNodes.some((s) => s === node) && !acc.some((s) => s.node === node)) {
-          const source = direction === "outbound" ? origin : node;
-          const target = direction === "outbound" ? node : origin;
-          acc.push({
-            source, target, direction,depth: nnDepth, node
-          })
-        }
-      }, {mode: direction});
-
+    const neighbourLinks = showEle.links.filter((f) => (direction === "outbound" ? getSourceId(f) : getTargetId(f)) === origin)
+    neighbourLinks.forEach((d) => {
+      const source = getSourceId(d);
+      const target = getTargetId(d);
+      const oppositeNode = source === origin ? target : source;
+      if(!previousNNNodes.includes(oppositeNode) && !acc.some((s) => s.node === oppositeNode)){
+        acc.push({
+          source, target, direction,depth: nnDepth, node: oppositeNode
+        })
+      }
+    })
      return acc;
     }, [])
 
-  const getNearestNeighbourLinks = (graph) => {
-    const depth1OutboundLinks = getNeighbours(graph,[config.nearestNeighbourOrigin], "outbound",1,[]);
-    const depth1InboundLinks = getNeighbours(graph,[config.nearestNeighbourOrigin],"inbound",1,[]);
+  const getNearestNeighbourLinks = () => {
+    const depth1OutboundLinks = getNeighbours([config.nearestNeighbourOrigin], "outbound",1,[]);
+    const depth1InboundLinks = getNeighbours([config.nearestNeighbourOrigin],"inbound",1,[]);
     const depth1Links = depth1OutboundLinks.concat(depth1InboundLinks);
     if(config.nearestNeighbourDegree > 1 && depth1Links.length > 0){
       const depth1NodeNames = [config.nearestNeighbourOrigin].concat(depth1Links.map((m) => m.node));
-      const depth2OutboundLinks = getNeighbours(graph,depth1OutboundLinks.map((m) => m.node),"outbound",2,depth1NodeNames);
-      const depth2InboundLinks = getNeighbours(graph, depth1InboundLinks.map((m) => m.node),"inbound",2,depth1NodeNames);
+      const depth2OutboundLinks = getNeighbours(depth1OutboundLinks.map((m) => m.node),"outbound",2,depth1NodeNames);
+      const depth2InboundLinks = getNeighbours( depth1InboundLinks.map((m) => m.node),"inbound",2,depth1NodeNames);
       const depth2Links = depth2OutboundLinks.concat(depth2InboundLinks);
       if(config.nearestNeighbourDegree > 2 && depth2Links.length > 0){
         const depth2NodeNames = depth1NodeNames.concat(depth2Links.map((m) => m.node));
-        const depth3OutboundLinks = getNeighbours(graph,depth2OutboundLinks.map((m) => m.node),"outbound",3,depth2NodeNames);
-        const depth3InboundLinks = getNeighbours(graph, depth2InboundLinks.map((m) => m.node),"inbound",3,depth2NodeNames);
+        const depth3OutboundLinks = getNeighbours(depth2OutboundLinks.map((m) => m.node),"outbound",3,depth2NodeNames);
+        const depth3InboundLinks = getNeighbours( depth2InboundLinks.map((m) => m.node),"inbound",3,depth2NodeNames);
         const depth3Links = depth3OutboundLinks.concat(depth3InboundLinks);
         return depth1Links.concat(depth2Links).concat(depth3Links);
       }
@@ -306,15 +319,62 @@ export default async function ForceGraph(
     }
     return depth1Links
   }
-  function positionNearestNeighbours(graph) {
 
-    const nnLinks = getNearestNeighbourLinks(graph);
-    const getMax = (direction) =>
-      d3.max(nnLinks.filter((f) => f.direction === direction),
-        (m) => m.depth) || 0
 
-    let totalDepth = getMax("inbound") + getMax("outbound");
-    totalDepth = totalDepth === 0 ? 1 : totalDepth;
+  const generateSymmetricNNArray = () => {
+    const arr = [];
+    for (let i = config.nearestNeighbourDegree; i > 0; i--) {
+      arr.push({type: "driver",level: i});
+    }
+    arr.push({type: "root", level: 0});
+    for (let i = 1; i <= config.nearestNeighbourDegree; i++) {
+      arr.push({type: "outcome",level: i});
+    }
+    return arr;
+  }
+
+  const renderNNLevelLabels = (nnData) => {
+
+    const nnWidth = 200;
+    const nnHeight = 1000;
+
+    // need to add arrows
+    const nnLabelGroup = svg.select(".nnGroup")
+      .selectAll(".nnLabelGroup")
+      .data(nnData)
+      .join((group) => {
+        const enter = group.append("g").attr("class", "nnLabelGroup");
+        enter.append("text").attr("class", "nnLabelType");
+        enter.append("text").attr("class", "nnLabelLevel");
+        return enter;
+      });
+
+    nnLabelGroup.attr("transform",(d,i) => `translate(${i * nnWidth},${(height - nnHeight)/2 + 40})`)
+
+    nnLabelGroup.select(".nnLabelType")
+      .attr("x", nnWidth/2)
+      .attr("y",20)
+      .attr("font-size",18)
+      .attr("text-anchor", "middle")
+      .attr("fill","white")
+      .text((d) => d.type.toUpperCase());
+
+    nnLabelGroup.select(".nnLabelLevel")
+      .attr("x", nnWidth/2)
+      .attr("y",35)
+      .attr("font-size",14)
+      .attr("text-anchor", "middle")
+      .attr("fill","white")
+      .text((d) => `${d.level > 0 ? `Level ${d.level}`: ""}`);
+
+    return {nnWidth, nnHeight,nnLength: nnData.length};
+  }
+  function positionNearestNeighbours() {
+
+    const {nnWidth, nnHeight,nnLength} = renderNNLevelLabels(generateSymmetricNNArray());
+
+    const nnLinks = getNearestNeighbourLinks();
+
     const getHierarchy = (parentId, id, direction, rootLink) =>  d3
       .stratify()
       .parentId((d) => d[parentId])
@@ -339,44 +399,53 @@ export default async function ForceGraph(
     },{})
 
     const maxColumnRadius = nnLinks.length === 0 ? 0 : d3.max(Object.values(radiusByDepthDirection));
-    const maxKey = Object.keys(radiusByDepthDirection).find((f) => radiusByDepthDirection[f] === maxColumnRadius);
 
-    let filteredLinks = [];
-    if(maxKey){
-      const maxKeySplit = maxKey.split("-");
-      filteredLinks = nnLinks.filter((f) => f.depth === +maxKeySplit[0] && f.direction === maxKeySplit[1]);
-    }
-
-    const dx = maxColumnRadius > height ? height/(filteredLinks.length/3) : maxColumnRadius;
-
-    const visibleWidth = window.innerWidth < 1000 ? window.innerWidth : window.innerWidth - PANEL_WIDTH;
-    const dy = visibleWidth  / totalDepth;
-
-    const getTree = (hierarchy) =>  d3
+    const getTree = (hierarchy, treeWidth) =>  d3
       .tree()
-      .nodeSize([dx, dy])(hierarchy)
+      .size([nnHeight * 0.9, treeWidth])(hierarchy)
       .descendants()
       .filter((f) => f.depth > 0)
 
+    const getNNLinks = (node) => {
+      const nnLinkIds = node.descendants().map((m) => m.id);
+      node.ancestors().forEach((d) => {
+        if(!nnLinkIds.some((s) => s === d.id)){
+          nnLinkIds.push(d.id)
+        }
+      });
+      return nnLinkIds;
+    }
+    const maxInDepth = d3.max(inboundHierarchy, (d) => d.depth);
+    const maxOutDepth = d3.max(outboundHierarchy, (d) => d.depth);
+    const shiftRight = (config.nearestNeighbourDegree + 0.5) * nnWidth;
     const getAllNodePositions = () => {
-      const centralNodes = [{ name: config.nearestNeighbourOrigin, x: 0, y: 0, direction: "center", depth: 0 }];
-      const inboundNodes = getTree(inboundHierarchy).reduce((acc, node) => {
+      const centralNodes = [{
+        name: config.nearestNeighbourOrigin,
+        x: shiftRight,
+        y: 0,
+        direction: "center",
+        depth: 0,
+        nnLinkIds: getNNLinks(inboundHierarchy).concat(getNNLinks(outboundHierarchy))
+      }];
+      const inboundNodes = getTree(inboundHierarchy, nnWidth * maxInDepth).reduce((acc, node) => {
         acc.push({
           name: node.id,
-          x: -node.y,
+          x: -node.y + shiftRight,
           y: node.x,
           direction: "in",
-          depth: node.depth
+          depth: node.depth,
+          nnLinkIds: getNNLinks(node)
         });
         return acc;
       }, []);
-      const outboundNodes = getTree(outboundHierarchy).reduce((acc, node) => {
+      const outboundNodes = getTree(outboundHierarchy,nnWidth * maxOutDepth).reduce((acc, node) => {
         acc.push({
           name: node.id,
-          x: node.y,
+          x: node.y + shiftRight,
           y: node.x,
           direction: "out",
-          depth: node.depth
+          depth: node.depth,
+          nnLinkIds: getNNLinks(node)
         });
         return acc;
       }, []);
@@ -393,7 +462,7 @@ export default async function ForceGraph(
     const nodesByColumn = Array.from(d3.group(allNNNodes, (g) => `${g.direction}-${g.depth}`));
     const groupsWithHeightInRange = nodesByColumn.filter((f) => f[1].length > 1 && d3.sum(f[1], (s) => s.radius * radiusMultiple) < height);
     groupsWithHeightInRange.forEach((group) => {
-      let currentY = -(d3.sum(group[1], (s) => s.radius * radiusMultiple))/2;
+      let currentY = 0;
       group[1].forEach((node) => {
         node.y = currentY + node.radius;
         currentY += (node.radius *radiusMultiple);
@@ -461,11 +530,11 @@ export default async function ForceGraph(
     }
     updatePositions(true);
   }
-  function clickNode (nodeName,origin, graph){
+  function clickNode (nodeName,origin, graph, rightClick){
     d3.select("#noShortestPathMessage").style("visibility","hidden");
     if(origin === "search" && config.currentLayout === "nearestNeighbour"){
       config.setNearestNeighbourOrigin(nodeName);
-      positionNearestNeighbours(graph);
+      positionNearestNeighbours();
     } else if (config.currentLayout === "shortestPath") {
       if(origin === "search"){
         config.setShortestPathStart(nodeName);
@@ -475,6 +544,12 @@ export default async function ForceGraph(
       if(config.shortestPathStart !== "" && config.shortestPathEnd !== ""){
         positionShortestPath(graph);
       }
+    } else if (rightClick) {
+      config.setCurrentLayout("nearestNeighbour");
+      config.setNearestNeighbourOrigin(nodeName);
+      config.setSelectedNodeNames(config.allNodeNames);
+      expandedAll = true;
+      switchLayouts(graph);
     } else if(expandedAll){
       config.setSelectedNodeNames([nodeName])
     } else if(config.selectedNodeNames.some((s) => s === nodeName)){
@@ -488,11 +563,12 @@ export default async function ForceGraph(
       const appendedNodes = config.selectedNodeNames.concat([nodeName]);
       config.setSelectedNodeNames(appendedNodes);
     }
-    updatePositions();
+    updatePositions(true);
     if(config.currentLayout === "default"){
       drawTree();
     }
   }
+
 
 
   // Update coordinates of all PIXI elements on screen based on force simulation calculations
@@ -515,6 +591,7 @@ export default async function ForceGraph(
           if(matchingNode){
             node.x = matchingNode.x;
             node.y = matchingNode.y;
+            node.nnLinkIds = matchingNode.nnLinkIds;
             acc.push(node);
           }
           return acc;
@@ -527,12 +604,20 @@ export default async function ForceGraph(
       chartNodes = chartNodes.filter((f) => f.radiusVar > 0);
     }
 
-    expandedAll = chartNodes.length === config.selectedNodeNames.length;
+    expandedAll = showEle.nodes.length === config.selectedNodeNames.length;
+    d3.select(".view_selectButton").html(expandedAll ? "unselect ALL" : "select ALL");
 
-    const chartLinks = chartNodes.length === showEle.nodes.length ? showEle.links :
-      showEle.links.filter((f) =>
-      chartNodes.some((s) => s.NAME === getSourceId(f)) &&
-      chartNodes.some((s) => s.NAME === getTargetId(f)));
+
+    let chartLinks = showEle.links;
+    if(config.currentLayout === "nearestNeighbour"){
+      chartLinks = showEle.links.filter((f) => config.notDefaultSelectedLinks
+        .some((s) => s.source === getSourceId(f) && s.target === getTargetId(f)));
+    } else if (chartNodes.length !== showEle.nodes.length){
+       chartLinks = showEle.links.filter((f) =>
+         chartNodes.some((s) => s.NAME === getSourceId(f)) &&
+         chartNodes.some((s) => s.NAME === getTargetId(f)));
+    }
+
 
     const getNodeAlpha = (nodeName, linkCount,label) => {
       if(expandedAll || config.currentLayout !== "default") return 1;
@@ -617,9 +702,6 @@ export default async function ForceGraph(
         .on("drag", dragged))
       .on("mouseover",(event,d) => {
         d3.select(event.currentTarget).select(".nodeCircle").attr("fill", "white");
-        if(config.currentLayout === "default"){
-          updateTooltip(d, true, event.x);
-        }
         if(config.graphDataType !== "parameter"){
           const currentNodeId = d.id;
           svg.selectAll(".linkPath").attr("stroke-opacity", 0.05);
@@ -637,10 +719,32 @@ export default async function ForceGraph(
                 .attr("stroke-opacity",0.5);
             })
 
+        } else {
+          updateTooltip(d, true, event.x);
+          if(config.currentLayout === "nearestNeighbour"){
+            svg.selectAll(".linkPath").attr("stroke-opacity", 0.05);
+            svg.selectAll(".nodeCircle").attr("opacity",0.2);
+            svg.selectAll(".linkPath")
+              .filter((f) => d.nnLinkIds.includes(f.source.id) && d.nnLinkIds.includes(f.target.id))
+                .attr("stroke-opacity", 0.5);
+            svg.selectAll(".nodeCircle")
+              .filter((f) =>  d.nnLinkIds.includes(f.id))
+              .attr("opacity",1);
+
+          }
         }
       })
-      .on("mouseout", (event,d) => {
-        d3.selectAll(".nodeCircle").attr("fill", (d) => d.color);
+      .on("mouseout", (event) => {
+        d3.selectAll(".nodeCircle")
+          .attr("fill", (d) => d.color)
+          .attr("opacity",(d) =>
+            config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
+              config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
+        svg.selectAll(".linkPath")
+            .attr("stroke-opacity", (d) => getLinkAlpha(d,chartLinks.length))
+            .attr("marker-start",(d) => checkLinkSelected(d) &&  d.direction === "both" && config.showArrows  ? "url(#arrowPathStart)" : "")
+            .attr("marker-end",(d) => checkLinkSelected(d) && config.showArrows  ? "url(#arrowPathEnd)" : "")
+
         if(config.graphDataType === "parameter"){
           if(expandedAll && config.currentLayout === "default"){
             tooltip.style("visibility", "hidden");
@@ -648,19 +752,13 @@ export default async function ForceGraph(
             const tooltipNode = getTooltipNode();
             updateTooltip(tooltipNode, false, event.x);
           }
-        } else {
-          svg.selectAll(".linkPath")
-            .attr("marker-start",  "")
-            .attr("marker-end","")
-            .attr("stroke-opacity", 0.5);
-          svg.selectAll(".nodeCircle").attr("opacity",1);
         }
       })
       .on("click", (event, d) => {
         if (event.defaultPrevented) return; // dragged
-        if(config.currentLayout === "default"){
+        if(config.currentLayout === "default" && config.graphDataType === "parameter"){
           d3.select(event.currentTarget).raise();
-          clickNode(d.NAME, "node", graph)
+          clickNode(d.NAME, "node", graph, event.shiftKey)
         }
       })
 
@@ -674,7 +772,7 @@ export default async function ForceGraph(
 
     nodesGroup
       .select(".nodeLabel")
-      .style("display",config.currentLayout !== "default" || config.graphDataType !== "parameter" || currentZoomLevel > 3 ? "block":"none")
+      .style("display", getNodeLabelDisplay)
       .attr("text-anchor", "middle")
       .attr("dy",(d) => d.radius + 5)
       .attr("fill", "white")
@@ -684,7 +782,11 @@ export default async function ForceGraph(
 
     // need to reset zoom to bounds if going ahead with d3
     if(zoomToBounds){
-      performZoomAction(chartNodes,400,"zoomFit")
+      let zoomNodes = chartNodes;
+      if(!expandedAll && config.currentLayout === "default"){
+        zoomNodes = zoomNodes.filter((f) => config.selectedNodeNames.includes(f.id));
+      }
+      performZoomAction(zoomNodes,400,"zoomFit")
     }
 
     const tooltipNode = getTooltipNode();
@@ -827,7 +929,86 @@ export default async function ForceGraph(
       .text(textContent)
 
   }
+
+  const switchLayouts = (graph) => {
+    d3.select("#search-input").property("value","");
+    d3.select("#search-tab-container").style("height","auto");
+    d3.select("#noShortestPathMessage").style("visibility","hidden");
+    svg.selectAll(".nodeLabel").style("display",getNodeLabelDisplay);
+    d3.selectAll(".otherButton").style("top", config.currentLayout === "default" ? "74px" : "120px")
+    if(config.currentLayout === "default"){
+      d3.select("#view").style("display","block");
+      d3.select("#tabbed-component").classed("hidden",window.innerWidth < 1000);
+      d3.select("#showInfo").classed("hidden",window.innerWidth >= 1000);
+      d3.select("#hideInfo").classed("hidden",window.innerWidth < 1000);
+      d3.selectAll(".viewButton").style("opacity",1);
+      d3.select("#nnDegreeDiv").style("display","none");
+      d3.selectAll("#search-input").attr("placeholder","Search for variables");
+      d3.select("#hide-single-button").style("cursor","pointer").attr("disabled",false);
+      d3.select('#search-container-sp-end').style("display","none");
+      resetDefaultNodes();
+      updatePositions(true);
+    } else {
+      config.setNotDefaultSelectedNodeNames([]);
+      config.setNotDefaultSelectedLinks([]);
+      d3.select("#view").style("display","none");
+      d3.select("#tabbed-component").classed("hidden",true);
+      d3.selectAll(".viewButton").style("opacity",0);
+      d3.select("#hide-single-button").style("cursor","not-allowed").attr("disabled",true);
+      if(config.currentLayout === "nearestNeighbour"){
+        if(config.selectedNodeNames.length > 0 && !expandedAll) {
+          config.nearestNeighbourOrigin = config.selectedNodeNames[0];
+        }
+        if(config.nearestNeighbourOrigin !== ""){
+          positionNearestNeighbours();
+        } else {
+          updatePositions(true);
+        }
+        d3.select('#search-container-sp-end').style("display","none");
+        d3.select("#nnDegreeDiv").style("display","block");
+        d3.select("#search-tab-container").style("height","140px");
+        d3.selectAll("#search-input")
+          .attr("placeholder","Search for origin node")
+          .property("value",config.nearestNeighbourOrigin);
+      }
+      if(config.currentLayout === "shortestPath"){
+        if(config.selectedNodeNames.length > 0 && !expandedAll){
+          config.shortestPathStart = config.selectedNodeNames[0];
+          if(config.selectedNodeNames.length > 1){
+            config.shortestPathEnd = config.selectedNodeNames[1];
+            positionShortestPath(graph);
+          } else {
+            updatePositions(true);
+          }
+        } else {
+          updatePositions(true);
+        }
+        d3.select('#search-container-sp-end').style("display","block");
+        d3.select("#search-input-sp-end").property("value",config.shortestPathEnd);
+        d3.select("#search-tab-container").style("height","150px");
+        d3.select("#nnDegreeDiv").style("display","none");
+        d3.selectAll("#search-input")
+          .attr("placeholder","Search for start node")
+          .property("value",config.shortestPathStart);
+      }
+    }
+    d3.selectAll(".dropdown-item").style("color", (d, i, objects) => {
+      return config.currentLayout === objects[i].id ? "white" : "#808080";
+    })
+  }
   function updateButtons(graph) {
+
+    const downloadImageButton = d3.select("#downloadImage");
+
+    downloadImageButton
+      .style("cursor","pointer")
+      .on("mouseover mousemove", (event) => {
+        showTooltipExtra(event.x, event.y, "click to download chart as an image")
+      })
+      .on("mouseout", () => {
+        tooltipExtra.style("visibility","hidden");
+      })
+
     const hideSingleButton = d3.select("#hide-single-button");
 
     hideSingleButton.style("color", config.showSingleNodes ?  "#808080" : "white")
@@ -876,7 +1057,7 @@ export default async function ForceGraph(
       config.setNearestNeighbourDegree(this.value);
       d3.select("#nnDegreeValue").html(this.value);
       if(config.nearestNeighbourOrigin !== ""){
-        positionNearestNeighbours(graph);
+        positionNearestNeighbours();
       }
     });
 
@@ -903,71 +1084,18 @@ export default async function ForceGraph(
       return config.currentLayout === objects[i].id ? "white" : "#808080";
     })
       .on("click", (event) => {
+        // clear nearly new and move default -> selected if moving from nn or sp
+        renderNNLevelLabels([]);
+        if(config.currentLayout !== "default"){
+          config.notDefaultSelectedNodeNames.forEach((node) => {
+            if(!config.selectedNodeNames.some((s) => s === node.name)){
+              config.selectedNodeNames.push(node.name);
+            }
+          })
+        }
         const newLayout = event.currentTarget.id;
         config.setCurrentLayout(newLayout);
-        d3.select("#search-input").property("value","");
-        d3.select("#search-tab-container").style("height","auto");
-        d3.select("#noShortestPathMessage").style("visibility","hidden");
-        if(newLayout === "default"){
-          config.notDefaultSelectedNodeNames.forEach((node) => {
-          if(!config.selectedNodeNames.some((s) => s === node.name)){
-            config.selectedNodeNames.push(node.name);
-          }
-          })
-          d3.select("#view").style("display","block");
-          d3.select("#tabbed-component").classed("hidden",window.innerWidth < 1000);
-          d3.select("#showInfo").classed("hidden",window.innerWidth >= 1000);
-          d3.select("#hideInfo").classed("hidden",window.innerWidth < 1000);
-          d3.selectAll(".viewButton").style("opacity",1);
-          d3.select("#nnDegreeDiv").style("display","none");
-          d3.selectAll("#search-input").attr("placeholder","Search for variables");
-          d3.select("#hide-single-button").style("cursor","pointer").attr("disabled",false);
-          d3.select('#search-container-sp-end').style("display","none");
-          resetDefaultNodes();
-          updatePositions(true);
-      } else {
-        config.setNotDefaultSelectedNodeNames([]);
-        config.setNotDefaultSelectedLinks([]);
-        d3.select("#view").style("display","none");
-        d3.select("#tabbed-component").classed("hidden",true);
-        d3.selectAll(".viewButton").style("opacity",0);
-        d3.select("#hide-single-button").style("cursor","not-allowed").attr("disabled",true);
-        if(config.currentLayout === "nearestNeighbour"){
-          if(config.selectedNodeNames.length > 0){
-            config.nearestNeighbourOrigin = config.selectedNodeNames[0];
-            positionNearestNeighbours(graph);
-          } else {
-            updatePositions();
-          }
-          d3.select('#search-container-sp-end').style("display","none");
-          d3.select("#nnDegreeDiv").style("display","block");
-          d3.select("#search-tab-container").style("height","110px");
-          d3.selectAll("#search-input")
-            .attr("placeholder","Search for origin node")
-            .property("value",config.nearestNeighbourOrigin);
-        }
-        if(config.currentLayout === "shortestPath"){
-          if(config.selectedNodeNames.length > 0){
-            config.shortestPathStart = config.selectedNodeNames[0];
-            if(config.selectedNodeNames.length > 1){
-              config.shortestPathEnd = config.selectedNodeNames[1];
-              positionShortestPath(graph);
-            } else {
-              updatePositions()
-            }
-          }
-          d3.select('#search-container-sp-end').style("display","block");
-          d3.select("#search-input-sp-end").property("value",config.shortestPathEnd);
-          d3.select("#search-tab-container").style("height","120px");
-          d3.select("#nnDegreeDiv").style("display","none");
-          d3.selectAll("#search-input")
-            .attr("placeholder","Search for start node")
-            .property("value",config.shortestPathStart);
-        }
-      }
-        layoutOptions.style("color", (d, i, objects) => {
-          return config.currentLayout === objects[i].id ? "white" : "#808080";
-        })
+        switchLayouts(graph);
     });
   }
   function updateSearch(variableData, graph, extraIdString) {

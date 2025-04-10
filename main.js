@@ -124,7 +124,7 @@ export const renderGraph = (initial) => {
       targetId: "Variable",
       nodeTitle: (d) => d.NAME,
       nodeStroke: "#000",
-      linkStroke: "#D0D0D0",
+      linkStroke: "#A0A0A0",
       labelColor: "#fff",
       width: window.innerWidth,
       height: window.innerHeight,
@@ -136,3 +136,51 @@ if(!config.initialLoadComplete){
   getData();
 }
 
+const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
+  const scale = 3;
+  const svgElement = d3.select(".baseSvg").node();
+  const svgString = new XMLSerializer().serializeToString(svgElement);
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = function () {
+    const canvas = document.createElement('canvas');
+    canvas.width = (svgElement.viewBox.baseVal.width || svgElement.width.baseVal.value) * scale;
+    canvas.height = (svgElement.viewBox.baseVal.height || svgElement.height.baseVal.value) * scale;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    URL.revokeObjectURL(url);
+
+    canvas.toBlob(function(blob) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+    }, type);
+  };
+
+  img.onerror = function (err) {
+    console.error('Image load error:', err);
+    URL.revokeObjectURL(url);
+  };
+
+  img.src = url;
+}
+
+d3.select("#helpInfo")
+  .on("mouseover", () => {
+    d3.select("#helpInformationPanel").style("visibility","visible");
+  })
+  .on("mouseout", () => {
+    d3.select("#helpInformationPanel").style("visibility","hidden");
+  })
+d3.select("#downloadImage")
+  .on("click", () => {
+    saveSvgAsImage()
+  })

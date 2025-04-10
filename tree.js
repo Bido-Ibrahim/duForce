@@ -306,6 +306,7 @@ export default function VariableTree(nodes) {
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
       config.graphDataType = event.currentTarget.value;
+      config.currentLayout = "default";
       const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
       const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
       config.setSelectedNodeNames(nodeNamesCopy);
