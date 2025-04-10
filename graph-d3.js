@@ -227,6 +227,7 @@ export default async function ForceGraph(
         .call(
           zoom.transform,
           d3.zoomIdentity
+            .scale(1)
             .translate(width / 2, height / 2)
             .scale(fitToScale)
             .translate(translateX,  translateY)
@@ -244,12 +245,6 @@ export default async function ForceGraph(
     })
   }
 
-  const labelStyle = {
-    fontFamily: "Lato",
-    fontSize: 8,
-    align: "left",
-    fill: labelColor,
-  };
 
   if (!initial) {
     if (config.currentLayout === "default") {
@@ -985,7 +980,11 @@ export default async function ForceGraph(
             updatePositions(true);
           }
         } else {
-          updatePositions(true);
+          if(config.shortestPathStart !== "" && config.shortestPathEnd !== ""){
+            positionShortestPath(graph);
+          } else {
+            updatePositions(true);
+          }
         }
         d3.select('#search-container-sp-end').style("display","block");
         d3.select("#search-input-sp-end").property("value",config.shortestPathEnd);
@@ -1091,6 +1090,9 @@ export default async function ForceGraph(
         // clear nearly new and move default -> selected if moving from nn or sp
         renderNNLevelLabels([]);
         if(config.currentLayout !== "default"){
+          if(expandedAll && config.notDefaultSelectedNodeNames.length > 0){
+            config.setSelectedNodeNames([]);
+          }
           config.notDefaultSelectedNodeNames.forEach((node) => {
             if(!config.selectedNodeNames.some((s) => s === node.name)){
               config.selectedNodeNames.push(node.name);
