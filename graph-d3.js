@@ -181,6 +181,9 @@ export default async function ForceGraph(
   const getNodeLabelDisplay = (d) => {
     if(config.graphDataType !== "parameter" || config.currentLayout === "shortestPath") return "block";
     if(d.id === config.nearestNeighbourOrigin && config.currentLayout === "nearestNeighbour") return "block";
+    if(config.currentLayout === "default" && !expandedAll) {
+      return config.selectedNodeNames.includes(d.id) ? "block" : "none";
+    }
     return currentZoomLevel > 2 ? "block":"none";
   }
 
