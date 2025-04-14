@@ -98,10 +98,17 @@ const colorScale = getColorScale();
 const iconWidthHeight = 16;
 const depthExtra = (depth, increment) => (depth -1) * increment;
 
-const marginTop = 30;
-const rowHeight = 30;
+export const remToPx = (rem) =>{
+  // converts rem to px so we can maintain re-sizing
+  const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return rem * rootFontSize;
+}
+
+const marginTop = 0;
+const rowHeight = remToPx(1.7);
 const treeDivId = "view";
-const treeWidth = PANEL_WIDTH;
+// search-tab-container width is 18rem;
+let treeWidth = remToPx(18);
 
 // config.selectedNodeNames used by chart + list
 const getSelectedPath = (descendantNames) => {
@@ -112,7 +119,9 @@ const getSelectedPath = (descendantNames) => {
   return noneSelectedPath;
 }
 
+
 export const drawTree = () => {
+
   const currentTreeData = config.currentTreeData;
   const svg =  d3.select(`.${treeDivId}_svg`);
   const treeHeight = marginTop + (currentTreeData.descendants().length * rowHeight);
@@ -158,7 +167,7 @@ export const drawTree = () => {
 
   treeGroup.select(".treeLabel")
     .attr("font-weight", 400)
-    .attr("font-size", (d) => 16 - depthExtra(d.depth,2))
+    .attr("font-size", (d) => `${0.9 - depthExtra(d.depth,0.1)}rem`)
     .attr("dominant-baseline","middle")
     .attr("x",  (d) =>  iconWidthHeight + 5 + depthExtra(d.depth,15))
     .attr("y",   rowHeight/2)
@@ -310,7 +319,7 @@ export default function VariableTree(nodes) {
       const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
       const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
       config.setSelectedNodeNames(nodeNamesCopy);
-      svg.selectAll(`.${treeDivId}_selectButton`)
+      svg.selectAll(".viewPanelFilterButton")
         .attr("visibility", config.graphDataType === "parameter" ? "visible" : "hidden");
       svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
         svg.selectAll(".selectedCheckboxIconPath")
@@ -354,20 +363,13 @@ export default function VariableTree(nodes) {
   // append svg if there is one
   let svg = d3.select(`.${treeDivId}_svg`);
   if(svg.node() === null) {
+
     svg = d3.select(`#${treeDivId}`)
       .append("svg")
       .attr("class",`${treeDivId}_svg`)
       .attr("width", treeWidth)
       .attr("height", initialTreeHeight);
 
-    svg.append("line")
-      .attr("class", `${treeDivId}_topLine`);
-
-    svg.append("text")
-      .attr("class", `${treeDivId}_selectButton`);
-
-    svg.append("text")
-      .attr("class", `${treeDivId}_collapseButton`);
   } else {
     svg.attr("width", treeWidth)
       .attr("height", initialTreeHeight);
@@ -376,23 +378,8 @@ export default function VariableTree(nodes) {
   drawTree();
   renderGraph(true);
 
-  svg.select(`.${treeDivId}_topLine`)
-    .attr("x1", 0)
-    .attr("x2", treeWidth)
-    .attr("y1", marginTop )
-    .attr("y2", marginTop)
-    .attr("stroke", "#A0A0A0")
-    .attr("stroke-width", 0.25);
 
-  svg.select(`.${treeDivId}_selectButton`)
-    .attr("x", treeWidth)
-    .attr("y", 12)
-    .attr("cursor","pointer")
-    .attr("fill", "white")
-    .attr("font-weight", 400)
-    .attr("text-anchor","end")
-    .attr("font-size", 16)
-    .attr("dominant-baseline","middle")
+  d3.select("#selectUnselectButton")
     .text("unselect ALL")
     .on("click",(event) => {
       if(config.graphDataType === "parameter"){
@@ -411,14 +398,7 @@ export default function VariableTree(nodes) {
       }
     });
 
-  svg.select(`.${treeDivId}_collapseButton`)
-    .attr("cursor","pointer")
-    .attr("x", 5)
-    .attr("y", 12)
-    .attr("fill", "white")
-    .attr("font-weight", 400)
-    .attr("font-size", 16)
-    .attr("dominant-baseline","middle")
+  d3.select("#collapseExpandButton")
     .text("expand ALL")
     .on("click",(event) => {
       const text = d3.select(event.currentTarget).text();
@@ -435,5 +415,30 @@ export default function VariableTree(nodes) {
       d3.select(event.currentTarget).text(newText);
       drawTree();
     });
+
+  const resizeThrottle = (func, limit) => {
+    // from chatGPT - stops it resizing every nanosecond
+    let inThrottle;
+    return function () {
+      const args = arguments;
+      const context = this;
+      if (!inThrottle) {
+        func.apply(context, args);
+        inThrottle = true;
+        setTimeout(() => (inThrottle = false), limit);
+      }
+    };
+  }
+
+// Your resize handler function
+  function handleResize() {
+    // redraw tree on resize so container size matches tree size
+    treeWidth = remToPx(18);
+    svg.attr("width", treeWidth)
+    drawTree();
+  }
+
+// Add throttled event listener
+  window.addEventListener("resize", resizeThrottle(handleResize, 100));
 
 }
