@@ -1031,9 +1031,11 @@ export default async function ForceGraph(
     resetButtons
       .style("cursor","pointer")
       .on("mouseover mousemove", (event) => {
+        d3.select(event.currentTarget).style("color","#A0A0A0");
         showTooltipExtra(event.x, event.y, "reset search")
       })
       .on("mouseout", () => {
+        resetButtons.style("color","white");
         tooltipExtra.style("visibility","hidden");
       })
       .on("click", (event) => {
@@ -1056,14 +1058,35 @@ export default async function ForceGraph(
         updatePositions(true);
       })
 
+
+    const helpInfoButton = d3.select("#helpInfo");
+
+    helpInfoButton
+      .on("mouseover mousemove", (event) => {
+        d3.select(event.currentTarget).style("color","#A0A0A0");
+        const infoPanelVisible = d3.select("#helpInformationPanel").style("visibility") === "visible";
+        showTooltipExtra(event.x, event.y, `click to ${infoPanelVisible ? "hide" : "show"} help panel`)
+      })
+      .on("mouseout", () => {
+        helpInfoButton.style("color","white");
+        tooltipExtra.style("visibility","hidden");
+      })
+
+      .on("click", () => {
+        const infoPanelVisible = d3.select("#helpInformationPanel").style("visibility") === "visible";
+        d3.select("#helpInformationPanel").style("visibility",infoPanelVisible ? "hidden" : "visible");
+      })
+
     const downloadImageButton = d3.select("#downloadImage");
 
     downloadImageButton
       .style("cursor","pointer")
       .on("mouseover mousemove", (event) => {
+        d3.select(event.currentTarget).style("color","#A0A0A0");
         showTooltipExtra(event.x, event.y, "click to download chart as an image")
       })
       .on("mouseout", () => {
+        downloadImageButton.style("color","white");
         tooltipExtra.style("visibility","hidden");
       })
 
