@@ -771,7 +771,9 @@ export default async function ForceGraph(
         if (event.defaultPrevented) return; // dragged
         if(config.currentLayout === "default" && config.graphDataType === "parameter"){
           d3.select(event.currentTarget).raise();
-          clickNode(d.NAME, "node", graph, event.shiftKey)
+          // disabling nearestNeighbour shift click when no links
+          const shiftKey = event.shiftKey && d.radiusVar === 0 ? false : event.shiftKey;
+          clickNode(d.NAME, "node", graph, shiftKey)
         }
       })
 
