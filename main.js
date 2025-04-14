@@ -173,13 +173,6 @@ const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
   img.src = url;
 }
 
-d3.select("#helpInfo")
-  .on("mouseover", () => {
-    d3.select("#helpInformationPanel").style("visibility","visible");
-  })
-  .on("mouseout", () => {
-    d3.select("#helpInformationPanel").style("visibility","hidden");
-  })
 d3.select("#downloadImage")
   .on("click", () => {
     saveSvgAsImage()
