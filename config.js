@@ -1,7 +1,7 @@
 // config.js
 export const config = {
   // Mutable constants
-  graphDataType: "parameter",
+  graphDataType: "submodule",
   currentLayout: "default",
   showSingleNodes: true,
   showArrows: true,
@@ -24,6 +24,15 @@ export const config = {
   shortestPathEnd: "",
   allCategoryHierarchy: {},
   currentCategoryHierarchy: {},
+  tooltipRadio: "none",
+
+  setTooltipRadio(newString) {
+    if (typeof newString === "string") {
+      this.tooltipRadio = newString;
+    } else {
+      console.error("Expected an string for tooltipRadio.");
+    }
+  },
   setHierarchyData(newObject) {
     if (typeof newObject === "object") {
       this.hierarchyData = newObject;

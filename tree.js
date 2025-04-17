@@ -236,8 +236,14 @@ export const drawTree = () => {
       }
       config.setCurrentTreeData(currentTreeData);
       drawTree();
-      renderGraph(false);
+
+      d3.select(".animation-container").style("display", "flex");
+      setTimeout(() => {
+        renderGraph(false);
+      }, 0); // or 16 for ~1 frame delay at 60fps
     });
+
+  d3.select(".animation-container").style("display", "none");
 }
 
 const getLinkDirection = (linkIn, linkOut) => {
@@ -314,6 +320,7 @@ export default function VariableTree(nodes) {
 
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
+      d3.select(".animation-container").style("display", "flex");
       config.graphDataType = event.currentTarget.value;
       config.currentLayout = "default";
       const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
@@ -324,8 +331,10 @@ export default function VariableTree(nodes) {
       svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
         svg.selectAll(".selectedCheckboxIconPath")
         .attr("d", (d) => getSelectedPath(d.data.type === "tier3" ? [d.data.NAME] : config.tier1And2Mapper[d.data.id]))
+      setTimeout(() => {
+        renderGraph(config.graphDataType !== "parameter");
+      }, 0); // or 16 for ~1 frame delay at 60fps
 
-      renderGraph(config.graphDataType !== "parameter");
   });
 
   // this could potentially be a property
@@ -413,7 +422,11 @@ export default function VariableTree(nodes) {
         config.setCurrentTreeData(config.collapsedTreeData)
       }
       d3.select(event.currentTarget).text(newText);
-      drawTree();
+      d3.select(".animation-container").style("display", "flex");
+      setTimeout(() => {
+        drawTree();
+      }, 0); // or 16 for ~1 frame delay at 60fps
+
     });
 
   const resizeThrottle = (func, limit) => {
