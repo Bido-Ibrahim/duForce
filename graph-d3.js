@@ -89,7 +89,6 @@ export default async function ForceGraph(
     acc.push(node);
     return acc;
   }, [])
-
   /////////////////// Set up initial  DOM elements on screen ///////////////////
   // Create a container for tooltip that is only visible on mouseover of a node
   let tooltip = d3.select(containerSelector).select(".tooltip");
@@ -626,7 +625,6 @@ export default async function ForceGraph(
       }
 
     }
-
 
     expandedAll = config.graphDataType !== "parameter" || showEle.nodes.length === config.selectedNodeNames.length;
     d3.select("#selectUnselectButton").text(expandedAll ? "" : "Reset");
