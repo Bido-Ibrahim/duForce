@@ -389,13 +389,13 @@ export default function VariableTree(nodes) {
 
 
   d3.select("#selectUnselectButton")
-    .text("unselect ALL")
+    .text("")
     .on("click",(event) => {
       if(config.graphDataType === "parameter"){
         const text = d3.select(event.currentTarget).text();
-        const newText = text === "select ALL" ? "unselect ALL" : "select ALL"
+        const newText = text === "Reset" ? "" : "Reset"
         d3.select(event.currentTarget).text(newText);
-        if(text === "select ALL"){
+        if(text === "Reset"){
           // add all names to selected nodes
           config.setSelectedNodeNames(selectedNodeNamesCopy);
         } else {
