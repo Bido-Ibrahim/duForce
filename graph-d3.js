@@ -627,7 +627,6 @@ export default async function ForceGraph(
 
     }
 
-
     expandedAll = config.graphDataType !== "parameter" || showEle.nodes.length === config.selectedNodeNames.length;
     d3.select("#selectUnselectButton").text(expandedAll ? "" : "Reset");
 
