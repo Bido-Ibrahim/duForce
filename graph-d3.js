@@ -629,7 +629,7 @@ export default async function ForceGraph(
 
 
     expandedAll = config.graphDataType !== "parameter" || showEle.nodes.length === config.selectedNodeNames.length;
-    d3.select("#selectUnselectButton").text(expandedAll ? "unselect ALL" : "select ALL");
+    d3.select("#selectUnselectButton").text(expandedAll ? "" : "Reset");
 
     let chartLinks = showEle.links;
     if(fromNearestNeighbourDefaultNodeClick || config.tooltipRadio !== "none"){
