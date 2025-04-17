@@ -7,3 +7,4 @@ export const MESSAGES = {"noSP": "There is no shortest path between the selected
   "SP" : "Search for nodes to find the Shortest Path",
   "NN" : "Search for nodes to find the Nearest Neighbour",
 }
+export const TOOLTIP_KEYS = ['NAME', "Parameter Explanation", "SUBMODULE_NAME", "SEGMENT_NAME"];

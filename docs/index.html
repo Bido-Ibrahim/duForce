@@ -445,7 +445,6 @@
           padding: 20px;
           min-height: 100vh;        /* Ensure the container takes up at least 100% of the viewport height */
           box-sizing: border-box;   /* Include padding in the element's total width and height calculation */
-
       }
 
       .loading-animation {
@@ -579,8 +578,17 @@
           font-size: 0.7rem;
           height: 0.8rem;
       }
+
+        #directionToggle{
+            display: flex;
+            padding: 0;
+            margin: auto;
+            width: 100%;
+            font-size: 0.6rem;
+            height: 0.7rem;
+        }
     </style>
-    <script type="module" crossorigin src="/duForce/assets/index-1c1c5eb6.js"></script>
+    <script type="module" crossorigin src="/duForce/assets/index-d263d408.js"></script>
   </head>
   <body>
     <div id="fb-root"></div>
@@ -600,7 +608,6 @@
       </button>
     </div>
 
-    <div id="app"></div>
 
     <div class="animation-container">
       <div class="loading-animation">
@@ -642,11 +649,12 @@
         </div>
       </div>
     </div>
+    <div id="app"></div>
     <div id="search-tab-container">
       <div id ="dataRadio">View:
-        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter" checked>Parameters</label>
-        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Segments</label>
-        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule">SubModules</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule" checked>Quilt</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Middle</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter">Main</label>
       </div>
       <div id="parameter-menu">
       <div id="search-container">
