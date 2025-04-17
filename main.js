@@ -112,7 +112,6 @@ const getGraphData = () => {
 export const renderGraph = (initial) => {
 
   const graphData = getGraphData();
-
   // Execute the function to generate a new network
   ForceGraph(
     graphData,

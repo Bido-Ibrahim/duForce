@@ -1,7 +1,4 @@
-import * as PIXI from 'pixi.js'
-import { Viewport } from "pixi-viewport";
 import * as d3 from "d3";
-import { bfsFromNode } from "graphology-traversal";
 import Graph from "graphology";
 import Fuse from 'fuse.js'
 import { config } from "./config";
@@ -54,6 +51,7 @@ export default async function ForceGraph(
 ) {
   console.log("received data", nodes, links);
   if (!nodes) return;
+  d3.selectAll(".viewPanelFilterButton").style("display",config.graphDataType === "parameter" ? "block" : "none");
   d3.selectAll(".otherButton").style("top", config.graphDataType === "parameter" ? "2.9rem" : "1.4rem");
   const menuVisible = d3.select("#hideInfo").style("display") === "block";
   if(!menuVisible){
@@ -503,6 +501,8 @@ export default async function ForceGraph(
   }
 
   function positionShortestPath (graph) {
+    config.setNotDefaultSelectedNodeNames([]);
+    config.setNotDefaultSelectedLinks([]);
     const connectedNodes = dijkstra.bidirectional(graph, config.shortestPathStart, config.shortestPathEnd);
     if(connectedNodes){
       const connectedLinks = connectedNodes.reduce((acc, node,index) => {
@@ -658,7 +658,7 @@ export default async function ForceGraph(
 
     const getLinkAlpha = (link, linkLength) => {
       const linkOpacity = linkLength > 100 ? 0.4 : 0.6;
-      if(expandedAll || config.currentLayout !== "default") return linkOpacity;
+      if(expandedAll || config.currentLayout !== "default" || config.graphDataType !== "parameter") return linkOpacity;
       if(checkLinkSelected(link)) return linkOpacity;
       return 0.05;
     }
@@ -914,7 +914,7 @@ export default async function ForceGraph(
     } else if (!expandedAll || (config.currentLayout !== "default" && config.graphDataType === "parameter")) {
       let content = [];
        if(listToShow.length > 0){
-         if(!listToShow.some((s) => s.direction === undefined)){
+         if(!listToShow.some((s) => s.direction === undefined) && config.currentLayout === "default"){
            if(config.tooltipRadio === "none"){
              config.setTooltipRadio("both");
            }
@@ -1001,7 +1001,7 @@ export default async function ForceGraph(
     }
     let tooltipTop = y + (textSize * 2);
     if((tooltipTop + (textSize * 2)) > height){
-      tooltipTop = y - (textSize * 2);
+      tooltipTop = y - (textSize * 4);
     }
     tooltipExtra.style("left", `${tooltipLeft}px`)
       .style("font-size", "0.5rem")
@@ -1017,8 +1017,6 @@ export default async function ForceGraph(
     svg.selectAll(".nodeLabel").style("display",getNodeLabelDisplay);
     d3.selectAll(".otherButton").style("top", config.currentLayout === "default" ? "2.9rem" : "4.8rem");
     d3.select("#hide-single-button").style("display","none");
-    config.setNotDefaultSelectedNodeNames([]);
-    config.setNotDefaultSelectedLinks([]);
     config.setTooltipRadio("none");
     if(config.currentLayout === "default"){
       d3.select("#view").style("display","block");
@@ -1034,6 +1032,8 @@ export default async function ForceGraph(
       d3.select('#search-container-sp-end').style("display","none");
       if(config.selectedNodeNames.length === 0){
         config.setSelectedNodeNames(config.allNodeNames);
+        config.setNotDefaultSelectedNodeNames([]);
+        config.setNotDefaultSelectedLinks([]);
       }
       resetDefaultNodes();
       updatePositions(true);
