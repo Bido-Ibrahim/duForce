@@ -369,18 +369,23 @@
           font-size: 4rem;
       }
 
-
+        #selectUnselectButton{
+            display: none;
+            position: absolute;
+            top: 3.7rem;
+            left: 3rem;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
 
             /* Link to show tabbed component */
-        #selectUnselectButton, #collapseExpandButton {
+         #collapseExpandButton {
+             display: none;
             position: absolute;
             top: -2rem;
             padding: 0.6rem 0px 0px 0.3rem;
             cursor: pointer;
-            font-size: 0.9rem;
-        }
-        #selectUnselectButton {
-            left: 0rem;
+            font-size: 0.7rem;
         }
 
         #collapseExpandButton {
@@ -687,10 +692,12 @@
         <button class="dropdown-item" id="nearestNeighbour"><i class="fas fa-house-user"></i><span class="dropdown-span">Nearest Neighbour</span></button>
       </div>
        </div>
-      <p class="otherButton" id="helpInfo"><i class="fa-solid fa-circle-info"></i></p>
-      <p class="otherButton" id="downloadImage"><i class="fa-solid fa-circle-down"></i></p>
-      <p class="viewButton" id="showInfo">Show interactive menu</p>
-      <p class="viewButton hidden" id="hideInfo">Hide interactive menu</p>
+
+        <p class="otherButton" id="helpInfo"><i class="fa-solid fa-circle-info"></i></p>
+        <p class="otherButton" id="downloadImage"><i class="fa-solid fa-circle-down"></i></p>
+        <p class="viewPanelFilterButton" id="selectUnselectButton">unselect ALL</p>
+        <p class="viewButton" id="showInfo">Show interactive menu</p>
+        <p class="viewButton hidden" id="hideInfo">Hide interactive menu</p>
 
       <div id="helpInformationPanel">
         <p>Add your help information here.</p>
@@ -702,7 +709,6 @@
 
       <div id="tabbed-component">
         <div>
-          <p class="viewPanelFilterButton" id="selectUnselectButton">unselect ALL</p>
           <p class="viewPanelFilterButton"  id="collapseExpandButton">expand All</p>
         </div>
         <div id="view"></div>
