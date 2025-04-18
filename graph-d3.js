@@ -5,6 +5,7 @@ import { config } from "./config";
 import { drawTree, getColorScale, remToPx } from "./tree";
 import { MESSAGES, TOOLTIP_KEYS } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
+import { renderGraph } from "./main";
 
 
 export default async function ForceGraph(
@@ -1089,6 +1090,23 @@ export default async function ForceGraph(
   }
   function updateButtons(graph) {
 
+    d3.select("#selectUnselectButton")
+      .text("")
+      .on("click",(event) => {
+        d3.selectAll(".nodeCircle").attr("opacity",1);
+        performZoomAction(showEle.nodes,400,"zoomFit");
+        d3.selectAll(".nodeLabel").attr("opacity",0);
+        d3.select(event.currentTarget).text("");
+        config.setSelectedNodeNames(config.allNodeNames);
+        config.setNotDefaultSelectedLinks([]);
+        config.setNotDefaultSelectedNodeNames([]);
+        config.setNearestNeighbourOrigin("");
+        config.setShortestPathStart("");
+        config.setShortestPathEnd("");
+        config.setTooltipRadio("none");
+        d3.select(".tooltip").style("visibility","hidden");
+
+      });
     const resetButtons = d3.selectAll(".resetButton");
 
     resetButtons

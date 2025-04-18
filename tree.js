@@ -387,28 +387,6 @@ export default function VariableTree(nodes) {
   drawTree();
   renderGraph(true);
 
-
-  d3.select("#selectUnselectButton")
-    .text("")
-    .on("click",(event) => {
-        d3.select(event.currentTarget).text("");
-        config.setSelectedNodeNames(selectedNodeNamesCopy);
-        config.setNotDefaultSelectedLinks([]);
-        config.setNotDefaultSelectedNodeNames([]);
-        config.setNearestNeighbourOrigin("");
-        config.setShortestPathStart("");
-        config.setShortestPathEnd("");
-        config.setTooltipRadio("none");
-        d3.select(".tooltip").style("visibility","hidden");
-      d3.select(".animation-container").style("display", "flex");
-      setTimeout(() => {
-        drawTree();
-        renderGraph(false);
-      }, 0); // or 16 for ~1 frame delay at 60fps
-
-
-    });
-
   d3.select("#collapseExpandButton")
     .text("expand ALL")
     .on("click",(event) => {
