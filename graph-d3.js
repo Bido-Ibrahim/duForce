@@ -1095,7 +1095,7 @@ export default async function ForceGraph(
       .on("click",(event) => {
         d3.selectAll(".nodeCircle").attr("opacity",1);
         performZoomAction(showEle.nodes,400,"zoomFit");
-        d3.selectAll(".nodeLabel").attr("opacity",0);
+        d3.selectAll(".nodeLabel").attr("opacity",0).attr("stroke-width",0);
         d3.select(event.currentTarget).text("");
         config.setSelectedNodeNames(config.allNodeNames);
         config.setNotDefaultSelectedLinks([]);
