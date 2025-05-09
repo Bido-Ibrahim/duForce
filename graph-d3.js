@@ -55,7 +55,7 @@ export default async function ForceGraph(
   d3.selectAll(".viewPanelFilterButton").style("display",config.graphDataType === "parameter" ? "block" : "none");
   d3.selectAll(".otherButton").style("top", config.graphDataType === "parameter" ? "2.9rem" : "1.4rem");
   const menuVisible = d3.select("#hideInfo").style("display") === "block";
-  if(!menuVisible){
+  if(!menuVisible || config.graphDataType !== "parameter"){
     d3.select("#search-tab-container").style("height",config.graphDataType === "parameter" ? "4rem" : "2.5rem");
   }
    d3.select("#parameter-menu").style("display", config.graphDataType === "parameter" ? "block" : "none");
@@ -66,6 +66,7 @@ export default async function ForceGraph(
   // saving all nodes and links
   const showEle = { nodes, links };
 
+  console.log(config.selectedNodeNames.length);
   const nodeDegrees = nodes.reduce((acc, node) => {
     const sourceLinks = links.filter((f) => getSourceId(f) === node.id).length;
     const targetLinks = links.filter((f) => getTargetId(f) === node.id).length;
@@ -178,7 +179,7 @@ export default async function ForceGraph(
 
   const getNodeLabelDisplay = (d) => {
     if(config.graphDataType !== "parameter" || config.currentLayout === "shortestPath") return "block";
-    if(d.id === config.nearestNeighbourOrigin && config.currentLayout === "nearestNeighbour") return "block";
+    if(config.currentLayout === "nearestNeighbour") return "block";
     if(config.currentLayout === "default" && !expandedAll) {
       return config.selectedNodeNames.includes(d.id) ? "block" : "none";
     }
@@ -209,7 +210,7 @@ export default async function ForceGraph(
 
     const translateX = -(xExtent0 + xExtent1) / 2;
     const translateY = -(yExtent0 + yExtent1) / 2 + (config.currentLayout === "nearestNeighbour" ? 30 : 0);
-    const fitToScale = 0.9 / Math.max(xWidth / width, yWidth / height);
+    const fitToScale = 0.95 / Math.max(xWidth / width, yWidth / height);
     return {translateX, translateY, fitToScale};
   };
   const performZoomAction  =  (
@@ -547,6 +548,7 @@ export default async function ForceGraph(
   }
   function clickNode (nodeName,origin, graph){
     let updateNeeded = true;
+    d3.selectAll(".nodeBackgroundCircle").attr("stroke-width",0);
     d3.select("#infoMessage").style("visibility","hidden");
     if(origin === "search" && config.currentLayout === "nearestNeighbour"){
       config.setNearestNeighbourOrigin(nodeName);
@@ -568,6 +570,7 @@ export default async function ForceGraph(
       config.setNearestNeighbourOrigin(nodeName);
       config.setSelectedNodeNames([]);
       config.setNearestNeighbourDegree(1);
+      d3.select("#search-input").property("value",nodeName)
       positionNearestNeighbours(true);
     }
     // otherwise do nothing - no current click action for submodule or segment
@@ -578,6 +581,7 @@ export default async function ForceGraph(
 
   // Update coordinates of all PIXI elements on screen based on force simulation calculations
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
+
     if(config.currentLayout === "default"){
       drawTree();
     }
@@ -628,7 +632,9 @@ export default async function ForceGraph(
     }
 
     expandedAll = config.graphDataType !== "parameter" || showEle.nodes.length === config.selectedNodeNames.length;
-    d3.select("#selectUnselectButton").text(expandedAll ? "" : "Reset");
+
+    d3.select("#selectUnselectButton")
+      .text(config.graphDataType !== "parameter" || config.currentLayout !== "default" || expandedAll ? "" : "Reset");
 
     let chartLinks = showEle.links;
     if(fromNearestNeighbourDefaultNodeClick || config.tooltipRadio !== "none"){
@@ -656,7 +662,7 @@ export default async function ForceGraph(
     }
 
     const getLinkAlpha = (link, linkLength) => {
-      const linkOpacity = linkLength > 100 ? 0.4 : 0.6;
+      const linkOpacity = linkLength > 100 ? 0.3 : 0.6;
       if(expandedAll || config.currentLayout !== "default" || config.graphDataType !== "parameter") return linkOpacity;
       if(checkLinkSelected(link)) return linkOpacity;
       return 0.05;
@@ -673,8 +679,8 @@ export default async function ForceGraph(
         return enter;
       });
 
-    const getLinkPath = (d, i) => {
-      const path = d3.select(`#arrowLinkPath${i}`).node();
+    const getLinkPath = (d) => {
+      const path = d3.select(`#arrowLinkPath${d.index}`).node();
       const totalLength = path.getTotalLength();
       const start = path.getPointAtLength(d.source.radius + 2);
       const end = path.getPointAtLength(totalLength - (d.target.radius + 2));
@@ -683,7 +689,7 @@ export default async function ForceGraph(
 
     linksGroup
       .select(".linkPathForArrows")
-      .attr("id", (d,i) => `arrowLinkPath${i}`)
+      .attr("id", (d) => `arrowLinkPath${d.index}`)
       .attr("pointer-events", "none")
       .attr("stroke", "transparent")
       .attr("fill","none")
@@ -709,7 +715,28 @@ export default async function ForceGraph(
       d3.selectAll(".nodesGroup")
         .filter((f) => f.id === node.id)
         .attr("transform",  `translate(${event.x},${event.y})`);
-      updatePositions();
+
+      d3.selectAll(".linksGroup")
+        .filter((f) => f.source.id === node.id || f.target.id === node.id)
+        .each((d) => {
+          if(d.source.id === node.id){
+            d.source.x = event.x;
+            d.source.y = event.y;
+          } else {
+            d.target.x = event.x;
+            d.target.y = event.y;
+          }
+        })
+
+      d3.selectAll(".linkPathForArrows")
+        .filter((f) => f.source.id === node.id || f.target.id === node.id)
+        .attr("d", (d) => `M${d.source.x},${d.source.y},L${d.target.x},${d.target.y}`)
+
+
+        d3.selectAll(".linkPath")
+        .attr("d", getLinkPath);
+
+
     }
 
 
@@ -718,36 +745,55 @@ export default async function ForceGraph(
       .data(chartNodes, (d) => d.id)
       .join((group) => {
         const enter = group.append("g").attr("class", "nodesGroup");
+        enter.append("circle").attr("class", "nodeBackgroundCircle");
         enter.append("circle").attr("class", "nodeCircle");
         enter.append("text").attr("class", "nodeLabel");
         return enter;
       });
 
+    const quiltOrMiddleHighlight = (d) => {
+      const currentNodeId = d.id;
+      svg.selectAll(".allLinkPaths").attr("stroke-opacity", 0.05);
+      svg.selectAll(".nodeCircle").attr("opacity",0.2);
+      svg.selectAll(".allLinkPaths")
+        .attr("marker-start","")
+        .attr("marker-end","")
+        .filter((f) => f.source.id === currentNodeId || f.target.id === currentNodeId)
+        .each((d,i,objects) => {
+          const opposite = d.source.id === currentNodeId ? d.target.id : d.source.id;
+          svg.selectAll(".nodeCircle")
+            .filter((f) =>  f.id === opposite || f.id === currentNodeId)
+            .attr("opacity",1);
+          d3.select(objects[i])
+            .attr("marker-start", (n) => n.direction === "both"  ? "url(#arrowPathStart)" : "")
+            .attr("marker-end","url(#arrowPathEnd)")
+            .attr("stroke-opacity",0.5);
+        })
+    };
+
+    const allNodeMouseout = () => {
+      d3.selectAll(".nodeCircle")
+        .attr("stroke-width", 0)
+        .attr("opacity",(d) =>
+          config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
+            config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
+      svg.selectAll(".linkPath")
+        .attr("stroke-opacity", (d) => getLinkAlpha(d,chartLinks.length))
+        .attr("marker-start",(d) => checkLinkSelected(d) &&  d.direction === "both" && config.showArrows  ? "url(#arrowPathStart)" : "")
+        .attr("marker-end",(d) => checkLinkSelected(d) && config.showArrows  ? "url(#arrowPathEnd)" : "")
+
+    }
     nodesGroup.attr("transform", (d) => `translate(${d.x},${d.y})`)
       .call(d3.drag()
         .on("drag", dragged))
       .on("mouseover",(event,d) => {
-        d3.select(event.currentTarget).select(".nodeCircle").attr("fill", "white");
         if(config.graphDataType !== "parameter"){
-          const currentNodeId = d.id;
-          svg.selectAll(".allLinkPaths").attr("stroke-opacity", 0.05);
-          svg.selectAll(".nodeCircle").attr("opacity",0.2);
-          svg.selectAll(".allLinkPaths")
-            .attr("marker-start","")
-            .attr("marker-end","")
-            .filter((f) => f.source.id === currentNodeId || f.target.id === currentNodeId)
-            .each((d,i,objects) => {
-              const opposite = d.source.id === currentNodeId ? d.target.id : d.source.id;
-              svg.selectAll(".nodeCircle")
-                .filter((f) =>  f.id === opposite || f.id === currentNodeId)
-                .attr("opacity",1);
-              d3.select(objects[i])
-                .attr("marker-start", (n) => n.direction === "both"  ? "url(#arrowPathStart)" : "")
-                .attr("marker-end","url(#arrowPathEnd)")
-                .attr("stroke-opacity",0.5);
-            })
-
+          if(!d.nodeClicked){
+            d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+            quiltOrMiddleHighlight(d);
+          }
         } else {
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           updateTooltip(d, true, event.x);
           if(config.currentLayout === "nearestNeighbour"){
             svg.selectAll(".allLinkPaths")
@@ -763,28 +809,21 @@ export default async function ForceGraph(
             svg.selectAll(".nodeCircle")
               .filter((f) =>  d.nnLinkIds.includes(f.id))
               .attr("opacity",1);
-
           }
         }
       })
-      .on("mouseout", (event) => {
-        d3.selectAll(".nodeCircle")
-          .attr("fill", (d) => d.color)
-          .attr("opacity",(d) =>
-            config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
-              config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
-        svg.selectAll(".linkPath")
-            .attr("stroke-opacity", (d) => getLinkAlpha(d,chartLinks.length))
-            .attr("marker-start",(d) => checkLinkSelected(d) &&  d.direction === "both" && config.showArrows  ? "url(#arrowPathStart)" : "")
-            .attr("marker-end",(d) => checkLinkSelected(d) && config.showArrows  ? "url(#arrowPathEnd)" : "")
-        if(config.graphDataType === "parameter"){
+      .on("mouseout", (event,d) => {
+          if(config.graphDataType === "parameter"){
+            allNodeMouseout();
           if(expandedAll && config.currentLayout === "default"){
             tooltip.style("visibility", "hidden");
           } else {
             const tooltipNode = getTooltipNode();
             updateTooltip(tooltipNode, false, event.x);
           }
-        }
+        } else if (!d.nodeClicked){
+            allNodeMouseout();
+          }
       })
       .on("click", (event, d) => {
         if (event.defaultPrevented) return; // dragged
@@ -793,17 +832,45 @@ export default async function ForceGraph(
           // disabling nearestNeighbour shift click when no links
           clickNode(d.NAME, "node", graph)
         }
+        if(config.graphDataType !== "parameter"){
+          if(d.clicked){
+            d.clicked = false;
+            allNodeMouseout();
+          } else {
+            d.clicked = true;
+            quiltOrMiddleHighlight(d);
+          }
+          svg.selectAll(".nodesGroup").each((n) => n.nodeClicked = d.clicked);
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+          svg.selectAll(".nodeCircle")
+            .filter((f) => f.id !== d.id)
+            .attr("stroke-width",0)
+            .each((n) => n.clicked = false);
+
+        }
       })
 
+    const nodeHighlightStroke = 14;
     const getNodeStrokeElements = (element, d) => {
-      const defaultValue = element === "width" ? 0 : "";
-      const highlight = element === "width" ? 2 : "6,2";
+      const defaultValue = element === "width" ? 0 : 1;
+      const highlight = element === "width" ? 0.5 : 0.5;
       if(config.graphDataType !== "parameter") return defaultValue;
       if(d.id === config.nearestNeighbourOrigin) return highlight;
       if(config.shortestPathStart === d.id && config.shortestPathEnd !== "") return highlight;
       if(config.shortestPathEnd === d.id && config.shortestPathStart !== "") return highlight;
       return defaultValue;
     }
+
+    nodesGroup
+      .select(".nodeBackgroundCircle")
+      .attr("opacity", (d) => getNodeAlpha(d.NAME, d.radiusVar,false))
+      .attr("r", (d) => d.radius)
+      .attr("fill", (d) => d.color)
+      .attr("stroke", "white")
+      .attr("stroke-width", 0)
+      .attr("stroke-opacity", (d) => getNodeStrokeElements("opacity",d))
+
+
     nodesGroup
       .select(".nodeCircle")
       .attr("opacity", (d) => getNodeAlpha(d.NAME, d.radiusVar,false))
@@ -811,19 +878,41 @@ export default async function ForceGraph(
       .attr("fill", (d) => d.color)
       .attr("stroke", "white")
       .attr("stroke-width", (d) => getNodeStrokeElements("width",d))
-      .attr("stroke-dasharray", (d) => getNodeStrokeElements("dash",d));
+      .attr("stroke-opacity", (d) => getNodeStrokeElements("opacity",d))
 
+    const pulseNNCircle = () => {
+      svg.selectAll(".nodeBackgroundCircle")
+        .attr("stroke-width", 0)
+        .filter((f) => f.NAME === config.nearestNeighbourOrigin)
+        .interrupt()
+        .transition()
+        .duration(300)
+        .attr("stroke-width", nodeHighlightStroke)
+        .transition()
+        .duration(300)
+        .attr("stroke-width", 0)
+        .on("end",() => {
+            pulseNNCircle();
+        })
+
+    }
+    if(config.nearestNeighbourOrigin !== "" && config.currentLayout === "default" && config.graphDataType === "parameter"){
+      pulseNNCircle();
+    }
 
     const getNodeLabelDy = (d) => {
       if(config.graphDataType === "submodule") return d.radius + remToPx(0.6);
       if(config.graphDataType === "segment") return d.radius + remToPx(0.5);
       if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return d.radius + remToPx(0.4);
+      if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return d.radius + remToPx(0.6);
+
       return d.radius + remToPx(0.2);
     }
     const getNodeLabelSize = (d) => {
       if(config.graphDataType === "submodule") return "0.6em";
       if(config.graphDataType === "segment") return "0.5em";
       if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return "0.4rem";
+      if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return "0.6rem";
       return "0.2rem"
     }
     nodesGroup
@@ -1041,6 +1130,8 @@ export default async function ForceGraph(
       d3.select("#tabbed-component").classed("hidden",true);
       d3.selectAll(".viewButton").style("opacity",0);
       if(config.currentLayout === "nearestNeighbour"){
+        config.shortestPathStart = "";
+        config.shortestPathEnd = "";
         if(config.selectedNodeNames.length > 0 && !expandedAll) {
           config.nearestNeighbourOrigin = config.selectedNodeNames[0];
         }
@@ -1058,6 +1149,7 @@ export default async function ForceGraph(
           .property("value",config.nearestNeighbourOrigin);
       }
       if(config.currentLayout === "shortestPath"){
+        config.nearestNeighbourOrigin = "";
         if(config.selectedNodeNames.length > 0 && !expandedAll){
           config.shortestPathStart = config.selectedNodeNames[0];
           if(config.selectedNodeNames.length > 1){
@@ -1091,11 +1183,12 @@ export default async function ForceGraph(
   function updateButtons(graph) {
 
     d3.select("#selectUnselectButton")
-      .text("")
+      .text(config.graphDataType !== "parameter" || config.currentLayout !== "default" || expandedAll ? "" : "Reset")
       .on("click",(event) => {
+        d3.select("#tooltipCount").text("");
         d3.selectAll(".nodeCircle").attr("opacity",1);
+        expandedAll = true;
         performZoomAction(showEle.nodes,400,"zoomFit");
-        d3.selectAll(".nodeLabel").attr("opacity",0).attr("stroke-width",0);
         d3.select(event.currentTarget).text("");
         config.setSelectedNodeNames(config.allNodeNames);
         config.setNotDefaultSelectedLinks([]);
@@ -1105,6 +1198,7 @@ export default async function ForceGraph(
         config.setShortestPathEnd("");
         config.setTooltipRadio("none");
         d3.select(".tooltip").style("visibility","hidden");
+        drawTree();
 
       });
     const resetButtons = d3.selectAll(".resetButton");
@@ -1300,9 +1394,6 @@ export default async function ForceGraph(
 
           if (showEle.nodes.find((n) => n.NAME === item.NAME)) {
               clickNode(item.NAME, `search${extraIdString}`, graph);
-              if(config.currentLayout === "default"){
-                searchInput.value = "";
-              }
           } else {
             if(config.currentLayout !== "default" && item.NAME === ""){
               config.setNotDefaultSelectedLinks([]);
