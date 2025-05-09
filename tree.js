@@ -213,6 +213,8 @@ export const drawTree = () => {
     .attr("height", rowHeight)
     .attr("fill","transparent")
     .on("click",(event, d) => {
+      config.nearestNeighbourOrigin = "";
+      config.tooltipRadio = "none";
       if(d.data.type === "tier3") {
         if (config.selectedNodeNames.includes(d.data.NAME)) {
           // tier 3 (chart nodes) - currently selected
@@ -236,7 +238,6 @@ export const drawTree = () => {
       }
       config.setCurrentTreeData(currentTreeData);
       drawTree();
-
       d3.select(".animation-container").style("display", "flex");
       setTimeout(() => {
         renderGraph(false);
@@ -321,7 +322,14 @@ export default function VariableTree(nodes) {
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
       d3.select(".animation-container").style("display", "flex");
+      d3.select(".tooltip").style("visibility","hidden");
+      d3.select("#tooltipCount").text("");
+      d3.select("#nnDegreeDiv").style("display","none");
+      d3.select("#search-input").property("value","");
+      d3.select("#infoMessage").text("");
       config.graphDataType = event.currentTarget.value;
+      config.nearestNeighbourOrigin = "";
+      config.tooltipRadio = "none";
       config.currentLayout = "default";
       const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
       const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
