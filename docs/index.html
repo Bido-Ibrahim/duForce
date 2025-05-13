@@ -3,621 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
     <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,800&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" crossorigin="anonymous"></script>
-
-    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_GB/sdk.js#xfbml=1&version=v18.0" nonce="A8mSyCnv"></script>
+    
     <title>Graph Application</title>
-    <style>
-
-        /* Base font-size (mobile first) */
-        html {
-            font-size: 75%; /* 14.4px */
-        }
-
-        @media (min-width: 668px) {
-            html {
-                font-size: 80%; /* 16px */
-            }
-        }
-
-
-        @media (min-width: 768px) {
-            html {
-                font-size: 100%; /* 16px */
-            }
-        }
-
-        @media (min-width: 1024px) {
-            html {
-                font-size: 120%; /* 17.6px */
-            }
-        }
-
-      :root {
-        --main-bg-color: black;
-        --text-color: white;
-        --text-hover-color: #ddd;
-      }
-
-      body {
-        padding: 0px;
-        margin: 0px;
-          min-height: 480px;
-          min-width: 480px;
-        background-color: var(--main-bg-color);
-        font-family: "Lato", sans-serif;
-        position: relative;
-        overflow: hidden;
-      }
-
-        td, th {
-            white-space: nowrap;
-            text-align: center;
-            overflow: hidden;
-            text-overflow: ellipsis; /* adds "..." if text is clipped */
-        }
-
-      h2 {
-        font-family: "Montserrat", sans-serif;
-          font-size: 0.7rem;
-        padding: 0px 0.2rem;
-        margin: 0px;
-        color: var(--text-color);
-      }
-
-      h3 {
-        font-family: "Montserrat", sans-serif;
-        font-size: 0.7rem;
-        padding: 0px 0.2rem;
-        margin: 0px;
-      }
-
-      p {
-        font-family: "Lato", sans-serif;
-        font-size: 0.7rem;
-        padding: 0px 0.2rem;
-        margin: 0px;
-        color: var(--text-color);
-      }
-
-      span {
-        font-family: "Lato", sans-serif;
-        font-size: 0.7em;
-      }
-
-      th, td {
-          border: 0.5px solid #A0A0A0;
-          padding: 3px;
-          text-align: center;
-      }
-      th {
-          background-color: #D0D0D0;
-      }
-      td {
-          text-align: center;
-      }
-
-       select {
-        font-family: "Montserrat", sans-serif;
-        padding: 0.25rem 1rem;
-        margin: 0.25rem;
-        border: 0.1rem solid var(--text-color);
-        background-color: var(--main-bg-color);
-        color: var(--text-color);
-        cursor: pointer;
-        font-size: 0.7rem;
-      }
-
-
-      /* Style search box and its contents */
-      #search-container,#search-container-sp-end {
-        /* position: absolute;
-        display: flex;
-        top: 0px;
-        right: 20px; */
-        width: 12rem;
-        height: 1.9rem;
-        margin: 0.1rem;
-        position: relative;
-
-      }
-      #search-container{
-          top: 0.25rem;
-          z-index: 160;
-      }
-      #search-container-sp-end{
-            z-index: 70;
-        }
-      #search-input,#search-input-sp-end {
-          border-radius: 0.1rem;
-        font-family: "Lato", sans-serif;
-          padding: 0.25rem;
-        width: 11.5rem;
-        border: 0.075rem solid var(--text-color);
-        background-color: var(--main-bg-color);
-        color: var(--text-color);
-        font-size: 0.9rem;
-      }
-      #search-container-sp-end{
-          display: none;
-      }
-
-      #search-input-sp-end{
-          position: absolute;
-          top: 0.1rem;
-      }
-      #suggestions-container, #suggestions-container-sp-end {
-        /* position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%; */
-        width: 12rem;
-          font-size: 0.7rem;
-        border: 0;
-        background-color: var(--text-color);
-        color: var(--main-bg-color);
-        display: none;
-        max-height: 8rem;
-        overflow-y: auto;
-        position: relative;
-        z-index: 500;
-      }
-
-
-      .suggestion {
-        padding: 0.5rem;
-        cursor: pointer;
-      }
-
-      .suggestion:hover {
-        background-color: var(--text-hover-color);
-      }
-
-      /* Style the tabbed component */
-      #search-tab-container {
-          position: absolute;
-          right: 1rem;
-          top: 1.2rem;
-          background-color: var(--main-bg-color);
-          color: var(--text-color);
-          border: 0.075rem solid var(--text-color);
-          padding: 0.5rem;
-          width: 18rem;
-          height: 4rem;
-          max-height: calc(100vh - 3rem);
-          z-index: 10;
-      }
-
-      /* Style the tabbed component */
-      #tabbed-component {
-          position: relative;
-          background-color: transparent;
-          border: 0px ;
-          padding: 0px;
-          width: 18rem;
-          height: calc(100vh - 6rem);
-          z-index: 90;
-      }
-
-      #view {
-          position: relative;
-          margin-top: 3.6rem;
-          width: 100%;
-          max-height: calc(100vh - 9.5rem);
-          height: auto;
-          overflow-y: auto;
-      }
-
-
-#nnDegreeDiv{
-    position: absolute;
-    top: 3.8rem;
-    left: 0.6rem;
-    align-items: center;
-    display: none;
-
-}
-
-      input[type="range"] {
-          font-size: 0.7rem;
-          width: 6rem;
-          height: 0.7rem;
-          border-radius: 0.35rem;
-          margin-top: -1.8rem;
-          margin-left: 2.7rem;
-          margin-right: 0px;
-          vertical-align: middle;
-      }
-      #nnDegreeLabel {
-          font-size: 0.7rem;
-          margin: 0px;
-          padding: 0px;
-          vertical-align: middle; /* Ensures the label is aligned with the slider */
-          line-height: 1
-      }
-
-      #nnDegreeValue1 {
-          top: 1rem;
-          left: 2.5rem;
-          position: absolute;
-          margin-left: 0.25rem; /* Adds space between the slider and the value display */
-          font-weight: bold; /* Optional, to highlight the value */
-          font-size: 0.7rem;
-      }
-        #nnDegreeValue2 {
-            top: 1rem;
-            left: 5.25rem;
-            position: absolute;
-            margin-left: 0.25rem; /* Adds space between the slider and the value display */
-            font-weight: bold; /* Optional, to highlight the value */
-            font-size: 0.7rem;
-        }
-
-        #nnDegreeValue3 {
-            top: 1rem;
-            left: 8rem;
-            position: absolute;
-            margin-left: 0.25rem; /* Adds space between the slider and the value display */
-            font-weight: bold; /* Optional, to highlight the value */
-            font-size: 0.7rem;
-        }
-
-      #zoom-button-component {
-          position: relative;
-          border: 0px solid transparent;
-          background-color: var(--main-bg-color);
-          z-index: 400;
-      }
-
-      #zoom-in {
-          left: 0.2rem;
-      }
-
-      #zoom-out {
-          left: 1.7rem;
-      }
-
-      #zoom-to-fit {
-          left: 3.2rem;
-      }
-
-      .zoom-button {
-          position: absolute;
-      top: calc(100vh - 1.5rem);
-          width: 1.3rem;
-          height: 1.3rem;
-          border: 0.05rem solid white;
-          background-color: transparent;
-          color: white;
-          font-size: 0.7rem;
-          border-radius: 0.1rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: background-color 0.3s;
-          z-index: 350;
-      }
-
-      .toolbar-button {
-          width: 1.7rem;
-          height: 1.7rem;
-          border: 0.075rem solid white;
-          background-color: transparent;
-          color: white;
-          font-size: 0.9rem;
-          border-radius: 0.1rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: background-color 0.3s;
-          z-index: 350;
-      }
-
-      .dropdown-menu {
-          display: none;
-          position: absolute;
-          top: 3.5rem;
-          right: 0;
-          background: #333;
-          border: 0.075rem solid white;
-          border-radius: 3px;
-          padding: 0.15rem;
-          box-shadow: 0px 0.1rem 0.25rem rgba(0, 0, 0, 0.2);
-          z-index: 600;
-      }
-
-      .dropdown-span{
-          margin-left: 0.4rem;
-          font-size: 0.7rem;
-      }
-      .dropdown-item {
-          display: flex;
-          align-items: center;
-          background: transparent;
-          color: white;
-          border: none;
-          padding: 0.5rem 0.5rem;
-          cursor: pointer;
-          width: 100%;
-          text-align: left;
-      }
-      .dropdown-item i {
-          margin-right: 1rem;
-      }
-      .dropdown-item:hover {
-          color: #A0A0A0;
-          background-color: #484848;
-      }
-      .toolbar-container:hover .dropdown-menu {
-          display: block;
-      }
-      .toolbar-container {
-          position: relative;
-          display: inline-block;
-      }
-
-      #layout-button {
-          position: absolute;
-          top: 1.65rem;
-          right: 0.5rem;
-      }
-      #show-arrows-button {
-          position: absolute;
-          top: 1.65rem;
-          right: 2.4rem;
-      }
-      #hide-single-button {
-          position: absolute;
-          top: 1.65rem;
-          right: 4.3rem;
-      }
-
-      .toolbar-button:hover, .zoom-button:hover {
-          background-color: #484848;
-      }
-      .toolbar-button i {
-          pointer-events: none;
-          color: white;
-          font-size: 4rem;
-      }
-
-        #selectUnselectButton{
-            display: none;
-            position: absolute;
-            top: 3.7rem;
-            left: 3rem;
-            cursor: pointer;
-            font-size: 0.7rem;
-        }
-
-            /* Link to show tabbed component */
-         #collapseExpandButton {
-             display: none;
-            position: absolute;
-            top: -2rem;
-            padding: 0.6rem 0px 0px 0.3rem;
-            cursor: pointer;
-            font-size: 0.7rem;
-        }
-
-        #collapseExpandButton {
-            right: 0rem;
-        }
-
-      /* Link to show tabbed component */
-      #showInfo, #hideInfo {
-        position: absolute;
-        top: 3.1rem;
-        right: 0.5rem;
-        padding: 0.6rem 0px 0px 0.3rem;
-        cursor: pointer;
-        font-size: 0.7rem;
-      }
-      #helpInfo{
-          left: 0.25rem;
-      }
-
-      #downloadImage {
-          left: 1.45rem;
-      }
-      #helpInfo, #downloadImage {
-          position: absolute;
-          top: 2.9rem;
-          padding:  0.6rem 0px 0px 0.3rem;
-          cursor: pointer;
-          font-size: 1rem;
-      }
-
-      #refreshNN{
-          position: absolute;
-          left: 9.8rem;
-          top: -0.8rem;
-          padding:  0.6rem 0px 0px 0.3rem;
-          cursor: pointer;
-          font-size: 1rem;
-          z-index: 500;
-      }
-
-        #refreshSP{
-            position: absolute;
-            left: 12.1rem;
-            top: 0.3rem;
-            padding:  0rem 0px 0px 0.3rem;
-            cursor: pointer;
-            font-size: 1rem;
-            z-index: 500;
-        }
-
-      .hidden {
-        display: none;
-      }
-
-
-      .animation-container {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: center; /* Horizontally center content */
-          align-items: center;     /* Vertically center content */
-          gap: 30px;
-          padding: 20px;
-          min-height: 100vh;        /* Ensure the container takes up at least 100% of the viewport height */
-          box-sizing: border-box;   /* Include padding in the element's total width and height calculation */
-      }
-
-      .loading-animation {
-          color: white;
-          text-align: center;
-      }
-
-      /* Nodes Pulsing Animation */
-      .nodes-pulse {
-          width: 250px;
-          height: 200px;
-          position: relative;
-      }
-
-      .nodes-pulse .node {
-          position: absolute;
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          z-index: 10;
-          animation: pulse 1.5s infinite ease-in-out;
-      }
-
-      .nodes-pulse .link {
-          position: absolute;
-          height: 0.75px;
-          z-index: 5;
-          transform-origin: left;
-      }
-
-      .link{
-          background-color: #A0A0A0;
-      }
-
-      .nodes-pulse .node:nth-child(1) {
-          background-color: #418BFC;
-          top: 20px;
-          left: 70px;
-          animation-delay: 0s;
-      }
-      .nodes-pulse .node:nth-child(2) {
-          background-color: #46BCC8;
-          top: 70px;
-          left: 40px;
-          animation-delay: 0.3s;
-      }
-      .nodes-pulse .node:nth-child(3) {
-          background-color: #EB5E68;
-          top: 50px;
-          right: 50px;
-          animation-delay: 0.6s;
-      }
-      .nodes-pulse .node:nth-child(4) {
-          background-color: #BA6DE4;
-          bottom: 30px;
-          left: 100px;
-          animation-delay: 0.9s;
-      }
-      .nodes-pulse .node:nth-child(5) {
-          background-color: #D6AB1B;
-          bottom: 60px;
-          right: 70px;
-          animation-delay: 1.2s;
-      }
-
-      @keyframes pulse {
-          0%, 100% { transform: scale(1);  }
-          50% { transform: scale(1.2);  }
-      }
-
-      #infoMessage{
-          background-color: transparent;
-          color: white;
-          z-index: 200;
-          width: 100%;
-          padding: 0.15rem;
-          font-size: 0.7rem;
-          position: fixed;
-          text-align: center;
-          color: gold;
-          left: 0.5rem;
-          top: 0px;
-          visibility: hidden;
-      }
-
-        #tooltipCount{
-            background-color: transparent;
-            color: white;
-            z-index: 200;
-            padding: 0.25rem;
-            font-size: 0.6rem;
-            position: fixed;
-            text-align: center;
-            color: white;
-            left: 0.8rem;
-            top: 0px;
-
-        }
-
-      #helpInformationPanel{
-          background-color: black;
-          color: white;
-          z-index: 200;
-          width: 14rem;
-          height: auto;
-          max-height: 14rem;
-          overflow-y: auto;
-          padding: 0.3rem; /* Optional: Add padding */
-          position: fixed;
-          text-align: left;
-          left: 1rem;
-          bottom: 1.8rem;
-          border: 0.075rem solid white;
-          visibility: hidden;
-      }
-
-      input[type="radio"] {
-          padding: 0px;
-          margin-top: 0.05rem;
-          margin-left: 0.25rem;
-          margin-right: 0.2rem;
-      }
-      label {
-          display: flex;}
-
-      #dataRadio{
-          display: flex;
-          padding: 0;
-          margin: 0;
-          width: 20rem;
-          font-size: 0.7rem;
-          height: 0.8rem;
-      }
-
-        #directionToggle{
-            display: flex;
-            padding: 0;
-            margin: auto;
-            width: 100%;
-            font-size: 0.6rem;
-            height: 0.7rem;
-        }
-    </style>
-    <script type="module" crossorigin src="/duForce/assets/index-128871de.js"></script>
+    <script type="module" crossorigin src="/duForce/assets/index-93d7eb8f.js"></script>
+    <link rel="stylesheet" href="/duForce/assets/index-55bdaf77.css">
   </head>
   <body>
-    <div id="fb-root"></div>
+    <!-- tooltipCount + info message (top left + middle if needed) -->
     <div id="tooltipCount"></div>
-   <div id="infoMessage">There is no shortest path between the selected nodes</div>
-
-    
+    <div id="infoMessage">There is no shortest path between the selected nodes</div>
+    <!-- zoom button menu bottom left -->
     <div id="zoom-button-component">
       <button class="zoom-button" id="zoom-to-fit">
         <i class="fas fa-arrow-rotate-right"></i>
@@ -629,8 +28,7 @@
         <i class="fas fa-plus"></i>
       </button>
     </div>
-
-
+    <!-- loading animation - centre screen when needed -->
     <div class="animation-container">
       <div class="loading-animation">
         <h3>loading ...</h3>
@@ -640,28 +38,24 @@
           <div class="node"></div>
           <div class="node"></div>
           <div class="node"></div>
-
           <div class="link" style="
                     top: 45px;
                     left: 80px;
                     width: 50px;
                     transform: rotate(120deg);
                 "></div>
-
           <div class="link" style="
                     top: 45px;
                     left: 85px;
                     width: 100px;
                     transform: rotate(75deg);
                 "></div>
-
           <div class="link" style="
                     top: 85px;
                     left: 65px;
                     width: 100px;
                     transform: rotate(22deg);
                 "></div>
-
           <div class="link" style="
                     top: 55px;
                     left: 188px;
@@ -671,16 +65,19 @@
         </div>
       </div>
     </div>
+    <!-- main app container -->
     <div id="app"></div>
+    <!-- container far right -->
     <div id="search-tab-container">
+      <!-- data choice radio -->
       <div id ="dataRadio">View:
         <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule" checked>Quilt</label>
         <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Middle</label>
         <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter">Main</label>
       </div>
+      <!-- parameter menu with - search input, nnDegreeDiv + buttons -->
       <div id="parameter-menu">
       <div id="search-container">
-
         <input type="text" id="search-input" placeholder="Search for variables" />
         <div id="suggestions-container"></div>
       </div>
@@ -694,6 +91,7 @@
         <input type="range" id="nnDegree" name="nnDegree" min="1" max="3" value="1" />
         <p class="resetButton" id="refreshNN"><i class="fas fa-circle-xmark"></i></p>
       </div>
+        <!-- toolbar buttons and dropdown -->
       <button class="toolbar-button" id="show-arrows-button">
         <i class="fas fa-arrows-to-eye"></i>
       </button>
@@ -709,13 +107,13 @@
         <button class="dropdown-item" id="nearestNeighbour"><i class="fas fa-house-user"></i><span class="dropdown-span">Nearest Neighbour</span></button>
       </div>
        </div>
-
+      <!-- help, download, reset + show/view menu buttons -->
         <p class="otherButton" id="helpInfo"><i class="fa-solid fa-circle-info"></i></p>
         <p class="otherButton" id="downloadImage"><i class="fa-solid fa-circle-down"></i></p>
-        <p class="viewPanelFilterButton" id="selectUnselectButton">unselect ALL</p>
+        <p  id="resetButton">unselect ALL</p>
         <p class="viewButton" id="showInfo">Show interactive menu</p>
         <p class="viewButton hidden" id="hideInfo">Hide interactive menu</p>
-
+      <!-- helpinfo panel, fixed bottom right above zoom buttons, only available on request -->
       <div id="helpInformationPanel">
         <p>Add your help information here.</p>
         <h2>About International Futures (IFs) </h2>
@@ -723,17 +121,19 @@
         <p>To explore the model please visit: <a href="https://www.ifs.du.edu/ifs/frm_MainMenu.aspx"> IFs Online</a></p>
         <p>To read more about our history please visit: <a href="https://korbel.du.edu/pardee/content/pardee-history"> Pardee History </a></p>
       </div>
-
+      <!-- container far right -->
       <div id="tabbed-component">
         <div>
-          <p class="viewPanelFilterButton"  id="collapseExpandButton">expand All</p>
+          <p id="collapseExpandButton">expand All</p>
         </div>
+        <!-- collapsible menu tree container -->
         <div id="view"></div>
     </div>
     </div>
 
     <script>
 
+      // script for layout and hide/show buttons
       document.getElementById('layout-button').addEventListener('click', function(event) {
         event.stopPropagation();
         let menu = document.querySelector('.dropdown-menu');
