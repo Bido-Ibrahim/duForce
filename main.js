@@ -1,14 +1,27 @@
-import ForceGraph from "./graph-d3.js";
-import VariableTree, { getColorScale } from "./tree";
+import VariableTree from "./tree";
 import { config } from "./config";
 import * as d3 from "d3";
+
+// functions used by getData in order - dataNullValueCheck, generateParameterData, getHierarchy, setHierarchyData
+const dataNullValueCheck = (nodeData, dataType) => {
+  // makes sure that there are matching nodes for segment and submodule names
+  nodeData.filter((f) => f[dataType] === null).map((m) => {
+    const matching = nodeData.find((f) => f[`${dataType}_NAME`] === m[`${dataType}_NAME`]);
+    if(matching){
+      m[dataType] = matching[dataType];
+    } else {
+      console.error(`${JSON.stringify(m)} has missing ${dataType} data`);
+    }
+  });
+  return nodeData.filter((f) => f[dataType] !== null);
+}
 
 const generateParameterData = (dataNodes, dataLinks) => {
   // building nodes and links here
   const nodeIdVar = "NAME";
   const sourceIdVar = "UsesVariable";
   const targetIdVar = "Variable";
-
+  // add id, type and tier3 nodes to data nodes
   const nodes = dataNodes.reduce((acc, node) => {
     node.id = node[nodeIdVar];
     node.type = "tier3";
@@ -17,6 +30,7 @@ const generateParameterData = (dataNodes, dataLinks) => {
     return acc;
   }, [])
 
+  // filtering out duplicate links and set direction to both if opposite
   const links = dataLinks.reduce((acc, link) =>  {
     link.source = link[sourceIdVar];
     link.target = link[targetIdVar];
@@ -36,17 +50,142 @@ const generateParameterData = (dataNodes, dataLinks) => {
 
 }
 
-const dataNullValueCheck = (nodeData, dataType) => {
-  nodeData.filter((f) => f[dataType] === null).map((m) => {
-    const matching = nodeData.find((f) => f[`${dataType}_NAME`] === m[`${dataType}_NAME`]);
-    if(matching){
-      m[dataType] = matching[dataType];
-    } else {
-      console.error(`${JSON.stringify(m)} has missing ${dataType} data`);
-    }
-  });
-  return nodeData.filter((f) => f[dataType] !== null);
+const getHierarchy = (nodes) => {
+
+  const ROOT = { id: "ROOT" };
+  // slightly re-written from original since data is simpler for chart - same result
+  // get + set submodules
+  const SUBMODULES = Array.from(nodes.reduce((acc, node) => {
+    acc.add(`${node.SUBMODULE}-${node.SUBMODULE_NAME}`)
+    return acc;
+  },new Set()))
+    .reduce((acc, entry) => {
+      const entrySplit = entry.split("-");
+      // handling null values
+      const subModuleId = `submodule-${entrySplit[0]}`;
+      // filtering out duplicates for the demo
+      if(!acc.some((f) => f.id === subModuleId)){
+        acc.push({
+          id: subModuleId,
+          parent: "ROOT",
+          subModule: subModuleId,
+          NAME: entrySplit[1],
+          type: "tier1",
+        });
+      } else {
+        console.error(`${entry} is being filtered out as this subModule ID has been used previously with a different subModule Name`)
+      }
+      return acc;
+    },[])
+    .sort((a,b) => d3.ascending(a.NAME,b.NAME))
+
+  config.setSubModules(SUBMODULES.map((m) => m.id))
+
+  // get segments
+  const SEGMENTS = Array.from(nodes.reduce((acc, node) => {
+    acc.add(`${node.SEGMENT}-${node.SEGMENT_NAME}-${node.SUBMODULE}`)
+    return acc;
+  },new Set()))
+    .reduce((acc, entry) => {
+      const entrySplit = entry.split("-");
+      const parent = `submodule-${entrySplit[2]}`;
+      const segmentId =`segment-${entrySplit[0]}`
+      // filtering out duplicates for the demo
+      if(!acc.some((f) => f.id === segmentId)) {
+        acc.push( {
+          id: segmentId,
+          subModule: parent,
+          parent,
+          NAME: entrySplit[1],
+          type: "tier2",
+        });
+      } else {
+        console.error(`${segmentId} with submodule ${parent} is being filtered out as this segmentId has been used previously with a different Segment Name`)
+      }
+      return acc;
+    },[])
+
+  let data = nodes.reduce((acc, node,i) => {
+    acc.push({
+      parent: `segment-${node.SEGMENT}`,
+      subModule: `submodule-${node.SUBMODULE}`,
+      id: node.id,
+      NAME: node.NAME,
+      type: "tier3"
+    })
+    return acc;
+  },[])
+
+  data = data.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
+  const stratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(data);
+
+  return d3
+    .stratify()
+    .id((d) => d.id)
+    .parentId((d) => d.parent)(stratifyData)
+    .eachBefore((d,i) => { // sort as previous
+      d.data.hOrderPosition = i; // needed to keep correct order of tree menu
+    });
 }
+
+const setHierarchyData = (nodesCopy) => {
+
+  const getHierarchyLinks = (nodeSet, allLinks) =>  Array.from(nodeSet).reduce((acc, parent) => {
+    // used below
+    const getLinkDirection = (linkIn, linkOut) => {
+      if(linkIn && linkOut) return "both";
+      if(linkIn) return "inbound";
+      return "outbound";
+    }
+    // get non parent nodes + paramenters
+    const otherNodes = Array.from(nodeSet).filter((f) => f !== parent);
+    const nodeParameters = config.tier1And2Mapper[parent];
+    otherNodes.forEach((node) => {
+      const currentParameters = config.tier1And2Mapper[node];
+      const linkOut = allLinks.some((s) => nodeParameters.includes(s.source)
+        && currentParameters.includes(s.target));
+      const linkIn = allLinks.some((s) => nodeParameters.includes(s.target)
+        && currentParameters.includes(s.source));
+      const direction = getLinkDirection(linkIn,linkOut);
+      // define links and direction
+      if(!acc.some((s) => (s.source === parent && s.target === node) ||
+        (s.source === node && s.target === parent))){
+        // add if it doesn't exist already
+        acc.push({source: parent, target: node, direction});
+      }
+    })
+    return acc;
+  },[]);
+
+  const subModuleNames = new Set();
+  const segmentNames = new Set();
+  // add extra properties and populate submodule + segment sets
+  nodesCopy.descendants()
+    .map((m) => {
+      if(m.depth === 2){
+        m.data.parameterCount = m.children.length;
+        m.children = undefined;
+        m.data.children = undefined;
+        segmentNames.add(m.data.id);
+      }
+      if(m.depth === 1){
+        m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
+        subModuleNames.add(m.data.id);
+      }
+    })
+  // get submodule and segment links
+  const subModuleLinks = getHierarchyLinks(subModuleNames,config.parameterData.links);
+  const segmentLinks = getHierarchyLinks(segmentNames,config.parameterData.links);
+  // filter as needed (submodules = depth 1, segments = depth 2)
+  const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1).map((m) => m.data);
+  const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2).map((m) => m.data);
+  // set config data
+  config.setHierarchyData(
+    {submodule: {nodes: subModuleNodes, links: subModuleLinks, nodeNames: Array.from(subModuleNames)},
+      segment:{nodes: segmentNodes, links: segmentLinks, nodeNames: Array.from(segmentNames)}})
+
+}
+
 async function getData() {
   try {
     // const params = {
@@ -92,9 +231,31 @@ async function getData() {
       // selected node names stored in global array (default all selected)
       config.setSelectedNodeNames(resultNodesTrunc.map((m) => m.NAME));
       // as previously, chart always renders with full dataset (stored here);
-      config.parameterData = generateParameterData(resultNodesTrunc,resultEdges);
-      // tree is rendered first - renderGraph is called after each tree change
-      VariableTree(resultNodesTrunc);
+      config.setParameterData(generateParameterData(resultNodesTrunc,resultEdges));
+
+      // copy selected node names and set config
+      const selectedNodeNamesCopy = JSON.parse(JSON.stringify(config.selectedNodeNames));
+      config.setAllNodeNames(selectedNodeNamesCopy);
+
+      // get hierarchy from node names
+      const treeData = getHierarchy(resultNodesTrunc);
+
+      // mapping submodules and segments to their child nodes (for tree selection)
+      config.setTier1And2Mapper(treeData.descendants().filter((f) => f.data.type === "tier3").reduce((acc, entry) => {
+        const {subModule, parent, NAME} = entry.data;
+        if(!acc[subModule]) {acc[subModule] = []};
+        if(!acc[parent]) {acc[parent] = []};
+        acc[subModule].push(NAME);
+        acc[parent].push(NAME);
+        return acc;
+      },{}));
+
+      // copy hierarchy data
+      const nodesCopy = treeData.copy();
+      // set more config variables
+      setHierarchyData(nodesCopy);
+      // call the tree
+      VariableTree(treeData);
 
     } else {
       throw new Error("Invalid response format");
@@ -104,75 +265,9 @@ async function getData() {
   }
 }
 
-const getGraphData = () => {
-  if(config.graphDataType === "parameter") return config.parameterData;
-  if(config.graphDataType === "segment") return config.hierarchyData["segment"];
-  return config.hierarchyData["submodule"];
-}
-export const renderGraph = (initial) => {
 
-  const graphData = getGraphData();
-  // Execute the function to generate a new network
-  ForceGraph(
-    graphData,
-    {
-      containerSelector: "#app",
-      initial,
-      nodeId: "NAME",
-      sourceId: "UsesVariable",
-      targetId: "Variable",
-      nodeTitle: (d) => d.NAME,
-      nodeStroke: "#000",
-      linkStroke: "#A0A0A0",
-      labelColor: "#fff",
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }
-  );
-}
 // cheat because main.js was calling twice and didn't want to waste your time debugging at this stage
 if(!config.initialLoadComplete){
+  console.log('loading')
   getData();
 }
-
-const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
-  const scale = 3;
-  const svgElement = d3.select(".baseSvg").node();
-  const svgString = new XMLSerializer().serializeToString(svgElement);
-  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-
-  const img = new Image();
-  img.onload = function () {
-    const canvas = document.createElement('canvas');
-    canvas.width = (svgElement.viewBox.baseVal.width || svgElement.width.baseVal.value) * scale;
-    canvas.height = (svgElement.viewBox.baseVal.height || svgElement.height.baseVal.value) * scale;
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
-
-    URL.revokeObjectURL(url);
-
-    canvas.toBlob(function(blob) {
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = URL.createObjectURL(blob);
-      link.click();
-    }, type);
-  };
-
-  img.onerror = function (err) {
-    console.error('Image load error:', err);
-    URL.revokeObjectURL(url);
-  };
-
-  img.src = url;
-}
-
-d3.select("#downloadImage")
-  .on("click", () => {
-    saveSvgAsImage()
-  })

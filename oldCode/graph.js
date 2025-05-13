@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import { bfsFromNode } from "graphology-traversal";
 import { dijkstra } from "graphology-shortest-path";
 import Graph from "graphology";
-import VariableTree from "./tree.js";
+import VariableTree from "../tree.js";
 
 function generatePath(d, exclude_radius) {
   var dx = d.target.x - d.source.x;

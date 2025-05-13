@@ -5,7 +5,7 @@ import * as d3 from "d3";
 import { bfsFromNode } from "graphology-traversal";
 import { dijkstra } from "graphology-shortest-path";
 import Graph from "graphology";
-import VariableTree from "./tree.js";
+import VariableTree from "../tree.js";
 import Fuse from 'fuse.js'
 
 export default async function ForceGraph(
