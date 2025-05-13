@@ -1,88 +1,30 @@
 import * as d3 from "d3";
 import {  COLOR_SCALE_RANGE, PANEL_WIDTH } from "./constants";
-import { renderGraph } from "./main";
 import { config } from "./config";
-export const getColorScale = () => {
-  // color scale (same as original)
-  return  d3.scaleOrdinal(config.subModules, COLOR_SCALE_RANGE);
+import ForceGraph from "./graph-d3";
+
+// functions to render graph when ready (or after a collapsible tree change)
+const getGraphData = () => {
+  if(config.graphDataType === "parameter") return config.parameterData;
+  if(config.graphDataType === "segment") return config.hierarchyData["segment"];
+  return config.hierarchyData["submodule"];
 }
-const getHierarchy = (nodes) => {
+export const renderGraph = (initial) => {
 
-  const ROOT = { id: "ROOT" };
-  // slightly re-written since data is simpler for chart - same result
-  const SUBMODULES = Array.from(nodes.reduce((acc, node) => {
-    acc.add(`${node.SUBMODULE}-${node.SUBMODULE_NAME}`)
-    return acc;
-  },new Set()))
-    .reduce((acc, entry) => {
-      const entrySplit = entry.split("-");
-        // handling null values
-      const subModuleId = `submodule-${entrySplit[0]}`;
-      // filtering out duplicates for the demo
-      if(!acc.some((f) => f.id === subModuleId)){
-        acc.push({
-          id: subModuleId,
-          parent: "ROOT",
-          subModule: subModuleId,
-          NAME: entrySplit[1],
-          type: "tier1",
-        });
-      } else {
-        console.error(`${entry} is being filtered out as this subModule ID has been used previously with a different subModule Name`)
-      }
-      return acc;
-    },[])
-    .sort((a,b) => d3.ascending(a.NAME,b.NAME))
-
-
-
-  config.setSubModules(SUBMODULES.map((m) => m.id))
-  // slightly re-written since data is simpler for chart - same result
-  const SEGMENTS = Array.from(nodes.reduce((acc, node) => {
-    acc.add(`${node.SEGMENT}-${node.SEGMENT_NAME}-${node.SUBMODULE}`)
-    return acc;
-  },new Set()))
-    .reduce((acc, entry) => {
-      const entrySplit = entry.split("-");
-      const parent = `submodule-${entrySplit[2]}`;
-      const segmentId =`segment-${entrySplit[0]}`
-      // filtering out duplicates for the demo
-      if(!acc.some((f) => f.id === segmentId)) {
-        acc.push( {
-          id: segmentId,
-          subModule: parent,
-          parent,
-          NAME: entrySplit[1],
-          type: "tier2",
-        });
-      } else {
-        console.error(`${segmentId} with submodule ${parent} is being filtered out as this segmentId has been used previously with a different Segment Name`)
-      }
-      return acc;
-    },[])
-
-  let data = nodes.reduce((acc, node,i) => {
-      acc.push({
-        parent: `segment-${node.SEGMENT}`,
-        subModule: `submodule-${node.SUBMODULE}`,
-        id: node.id,
-        NAME: node.NAME,
-        type: "tier3"
-      })
-    return acc;
-  },[])
-
-  data = data.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
-  const stratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(data);
-
-  return d3
-    .stratify()
-    .id((d) => d.id)
-    .parentId((d) => d.parent)(stratifyData)
-    .eachBefore((d,i) => { // sort as previous
-      d.data.hOrderPosition = i; // needed to keep correct order of tree menu
-  });
+  const graphData = getGraphData();
+  // Execute the function to generate a new network
+  ForceGraph(
+    graphData,
+    {
+      containerSelector: "#app",
+      initial,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }
+  );
 }
+export const getColorScale = () => d3.scaleOrdinal(config.subModules, COLOR_SCALE_RANGE);
+
 // constants for drawTree function
 // From https://fontawesome.com/
 // go to approach is to use unicode's but the browser is converting text -> svg (never seen that before) and it's not rendering
@@ -119,7 +61,7 @@ const getSelectedPath = (descendantNames) => {
   return noneSelectedPath;
 }
 
-
+// called from within itself and from d3-graph.js
 export const drawTree = () => {
 
   const currentTreeData = config.currentTreeData;
@@ -247,103 +189,49 @@ export const drawTree = () => {
   d3.select(".animation-container").style("display", "none");
 }
 
-const getLinkDirection = (linkIn, linkOut) => {
-  if(linkIn && linkOut) return "both";
-  if(linkIn) return "inbound";
-  return "outbound";
+
+const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
+  // for download image button
+  const scale = 3;
+  const svgElement = d3.select(".baseSvg").node();
+  const svgString = new XMLSerializer().serializeToString(svgElement);
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = function () {
+    const canvas = document.createElement('canvas');
+    canvas.width = (svgElement.viewBox.baseVal.width || svgElement.width.baseVal.value) * scale;
+    canvas.height = (svgElement.viewBox.baseVal.height || svgElement.height.baseVal.value) * scale;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    URL.revokeObjectURL(url);
+
+    canvas.toBlob(function(blob) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+    }, type);
+  };
+
+  img.onerror = function (err) {
+    console.error('Image load error:', err);
+    URL.revokeObjectURL(url);
+  };
+
+  img.src = url;
 }
-const getHierarchyLinks = (nodeSet, allLinks) =>  Array.from(nodeSet).reduce((acc, parent) => {
-    const otherNodes = Array.from(nodeSet).filter((f) => f !== parent);
-    const nodeParameters = config.tier1And2Mapper[parent];
-     otherNodes.forEach((node) => {
-      const currentParameters = config.tier1And2Mapper[node];
-      const linkOut = allLinks.some((s) => nodeParameters.includes(s.source)
-        && currentParameters.includes(s.target));
-      const linkIn = allLinks.some((s) => nodeParameters.includes(s.target)
-        && currentParameters.includes(s.source));
-      const direction = getLinkDirection(linkIn,linkOut);
-      if(!acc.some((s) => (s.source === parent && s.target === node) ||
-        (s.source === node && s.target === parent))){
-        acc.push({source: parent, target: node, direction});
-      }
-      })
-  return acc;
-},[])
 
+// function called from main.js after initial render
+export default function VariableTree(data) {
 
-const setHierarchyData = (nodesCopy) => {
-  const subModuleNames = new Set();
-  const segmentNames = new Set();
-  nodesCopy.descendants()
-    .map((m) => {
-      if(m.depth === 2){
-        m.data.parameterCount = m.children.length;
-        m.children = undefined;
-        m.data.children = undefined;
-        segmentNames.add(m.data.id);
-      }
-      if(m.depth === 1){
-        m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
-        subModuleNames.add(m.data.id);
-      }
-    })
-  const subModuleLinks = getHierarchyLinks(subModuleNames,config.parameterData.links);
-  const segmentLinks = getHierarchyLinks(segmentNames,config.parameterData.links);
-  const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1).map((m) => m.data);
-  const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2).map((m) => m.data);
-
-  config.setHierarchyData(
-    {submodule: {nodes: subModuleNodes, links: subModuleLinks, nodeNames: Array.from(subModuleNames)},
-      segment:{nodes: segmentNodes, links: segmentLinks, nodeNames: Array.from(segmentNames)}})
-
-}
-export default function VariableTree(nodes) {
-  // initial set up for tree and buttons above
   const selectedNodeNamesCopy = JSON.parse(JSON.stringify(config.selectedNodeNames));
-  config.setAllNodeNames(selectedNodeNamesCopy);
-
-  const data = getHierarchy(nodes);
-
-
-  // mapping submodules and segments to their child nodes (for tree selection)
-  config.tier1And2Mapper = data.descendants().filter((f) => f.data.type === "tier3").reduce((acc, entry) => {
-    const {subModule, parent, NAME} = entry.data;
-    if(!acc[subModule]) {acc[subModule] = []};
-    if(!acc[parent]) {acc[parent] = []};
-    acc[subModule].push(NAME);
-    acc[parent].push(NAME);
-    return acc;
-  },{})
-
-  const nodesCopy = data.copy();
-  setHierarchyData(nodesCopy);
-
-
-  d3.selectAll(".chartDataRadio")
-    .on("change", (event) =>  {
-      d3.select(".animation-container").style("display", "flex");
-      d3.select(".tooltip").style("visibility","hidden");
-      d3.select("#tooltipCount").text("");
-      d3.select("#nnDegreeDiv").style("display","none");
-      d3.select("#search-input").property("value","");
-      d3.select("#infoMessage").text("");
-      config.graphDataType = event.currentTarget.value;
-      config.nearestNeighbourOrigin = "";
-      config.tooltipRadio = "none";
-      config.currentLayout = "default";
-      const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
-      const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
-      config.setSelectedNodeNames(nodeNamesCopy);
-      svg.selectAll(".viewPanelFilterButton")
-        .attr("visibility", config.graphDataType === "parameter" ? "visible" : "hidden");
-      svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
-        svg.selectAll(".selectedCheckboxIconPath")
-        .attr("d", (d) => getSelectedPath(d.data.type === "tier3" ? [d.data.NAME] : config.tier1And2Mapper[d.data.id]))
-      setTimeout(() => {
-        renderGraph(config.graphDataType !== "parameter");
-      }, 0); // or 16 for ~1 frame delay at 60fps
-
-  });
 
   // this could potentially be a property
   const startingDepth = 1;
@@ -362,6 +250,7 @@ export default function VariableTree(nodes) {
     return data;
   }
 
+  // setting the tree config data
   const allExpandedData = data.copy();
   config.setExpandedTreeData(allExpandedData)
   const treeData = setToStartingDepth(data);
@@ -371,13 +260,14 @@ export default function VariableTree(nodes) {
 
   const initialTreeHeight = marginTop + (treeData.descendants().length * rowHeight); // this resets after each render
 
+  // Prevent the scroll event on the tree from affecting other elements
   d3.select(`#${treeDivId}`)
     .style("pointer-events", "auto")
     .on('wheel', function(event) {
-      event.stopPropagation(); // Prevent the scroll event from affecting other elements
+      event.stopPropagation();
     })
 
-  // append svg if there is one
+  // append tree svg if there is one
   let svg = d3.select(`.${treeDivId}_svg`);
   if(svg.node() === null) {
 
@@ -395,6 +285,40 @@ export default function VariableTree(nodes) {
   drawTree();
   renderGraph(true);
 
+  // finally, set various buttons
+
+  // download image
+  d3.select("#downloadImage")
+    .on("click", () => {
+      saveSvgAsImage();
+    })
+
+  // chart data radio - parameter, submodule, segment
+  d3.selectAll(".chartDataRadio")
+    .on("change", (event) =>  {
+      d3.select(".animation-container").style("display", "flex");
+      d3.select(".tooltip").style("visibility","hidden");
+      d3.select("#tooltipCount").text("");
+      d3.select("#nnDegreeDiv").style("display","none");
+      d3.select("#search-input").property("value","");
+      d3.select("#infoMessage").text("");
+      config.graphDataType = event.currentTarget.value;
+      config.nearestNeighbourOrigin = "";
+      config.tooltipRadio = "none";
+      config.currentLayout = "default";
+      const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
+      const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
+      config.setSelectedNodeNames(nodeNamesCopy);
+      svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
+      svg.selectAll(".selectedCheckboxIconPath")
+        .attr("d", (d) => getSelectedPath(d.data.type === "tier3" ? [d.data.NAME] : config.tier1And2Mapper[d.data.id]))
+      setTimeout(() => {
+        renderGraph(config.graphDataType !== "parameter");
+      }, 0); // or 16 for ~1 frame delay at 60fps
+
+    });
+
+  // collapse expand button
   d3.select("#collapseExpandButton")
     .text("expand ALL")
     .on("click",(event) => {
@@ -417,6 +341,7 @@ export default function VariableTree(nodes) {
 
     });
 
+  // and handle resizing
   const resizeThrottle = (func, limit) => {
     // from chatGPT - stops it resizing every nanosecond
     let inThrottle;
@@ -439,7 +364,7 @@ export default function VariableTree(nodes) {
     drawTree();
   }
 
-// Add throttled event listener
+// Add throttled event listener which redraws the tree every 0.1 second rather than nanosecond
   window.addEventListener("resize", resizeThrottle(handleResize, 100));
 
 }

@@ -4,9 +4,9 @@ import * as d3 from "d3";
 import { bfsFromNode } from "graphology-traversal";
 import Graph from "graphology";
 import Fuse from 'fuse.js'
-import { config } from "./config";
-import { drawTree, getColorScale } from "./tree";
-import { PANEL_WIDTH } from "./constants";
+import { config } from "../config";
+import { drawTree, getColorScale } from "../tree";
+import { PANEL_WIDTH } from "../constants";
 import { dijkstra } from "graphology-shortest-path";
 
 export default async function ForceGraph(

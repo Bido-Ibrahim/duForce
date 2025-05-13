@@ -1,30 +1,32 @@
 // config.js
 export const config = {
-  // Mutable constants
-  graphDataType: "submodule",
-  currentLayout: "default",
-  showSingleNodes: true,
-  showArrows: true,
+  // default settings
+  currentLayout: "default", // 3 options - "default", "nearestNeighbour", "shortestPath"
+  graphDataType: "submodule", // 3 options - "submodule", "segment", "parameter"
   initialLoadComplete: false,
-  parameterData: {},
-  hierarchyData: {},
-  allNodeNames: [],
-  expandedTreeData: {}, // stored for collapseAll button
-  collapsedTreeData: {},
-  currentTreeData: {}, // current tree expansion status
-  tier1And2Mapper: {},
-  subModules: [],
-  selectedNodeNames: [],
-  defaultNodePositions:[],
-  notDefaultSelectedNodeNames: [],
-  notDefaultSelectedLinks: [],
   nearestNeighbourOrigin: "",
   nearestNeighbourDegree: 1,
   shortestPathStart: "",
   shortestPathEnd: "",
-  allCategoryHierarchy: {},
-  currentCategoryHierarchy: {},
-  tooltipRadio: "none",
+  showArrows: true,
+  showSingleNodes: true,
+  // data set on initial load
+  allNodeNames: [],
+  hierarchyData: {},
+  subModules: [],
+  parameterData: {},
+  // data set on initial load - for tree menu
+  expandedTreeData: {}, // stored for expandAll button
+  collapsedTreeData: {}, // stored for collapseAll button
+  currentTreeData: {}, // current tree expansion status
+  tier1And2Mapper: {},// used when collapsing/expanding tree
+  // set after initial default load
+  defaultNodePositions:[],
+  // arrays used for selected nodes (notDefault for NN + SP layouts)
+  selectedNodeNames: [],
+  notDefaultSelectedNodeNames: [],
+  notDefaultSelectedLinks: [],
+  tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
 
   setTooltipRadio(newString) {
     if (typeof newString === "string") {
@@ -45,20 +47,6 @@ export const config = {
       this.parameterData = newObject;
     } else {
       console.error("Expected an array for parameterData.");
-    }
-  },
-  setAllCategoryHierarchy(newObject) {
-    if (typeof newObject === "object") {
-      this.allCategoryHierarchy = newObject;
-    } else {
-      console.error("Expected an array for collapsedCategoryHierarchy.");
-    }
-  },
-  setCurrentCategoryHierarchy(newObject) {
-    if (typeof newObject === "object") {
-      this.currentCategoryHierarchy = newObject;
-    } else {
-      console.error("Expected an array for currentCategoryHierarchy.");
     }
   },
   // Method to update the nodes array
