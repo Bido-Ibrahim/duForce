@@ -1044,7 +1044,6 @@ export default async function ForceGraph(
          } else {
            config.setTooltipRadio("none");
          }
-
         tooltip.style("padding","0.05rem")
         const tableStart = `<table style='font-size: 0.7rem; table-layout: fixed;  width: 100%;'><thead><tr>${config.graphDataType === "parameter" ? "<th style='width:30%; color: black;'>SEGMENT</th>" : ""}<th style='width:35%; color: black;'>NAME</th><th style='width:35%; color: black;'>DISPLAY NAME</th></tr></thead><tbody>`
         content.push(tableStart);
