@@ -9,7 +9,8 @@ import { dijkstra } from "graphology-shortest-path";
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
-
+  d3.select("#infoMessage").style("visibility","hidden");
+  d3.select("#tooltipCount").text("");
   d3.select("#parameter-menu").style("display", config.graphDataType === "parameter" ? "block" : "none");
   d3.select("#tabbed-component")
     .classed("hidden",config.graphDataType !== "parameter"
@@ -99,6 +100,8 @@ export default async function ForceGraph(
     tooltip = d3.select(containerSelector).append("div").attr("class", "tooltip");
     tooltipExtra = d3.select(containerSelector).append("div").attr("class", "tooltipExtra");
   }
+  tooltip.style("visibility","hidden");
+  tooltipExtra.style("visibility","hidden");
 
   // graphology component (used for NN and SP)
   const graph = initGraphologyGraph(showEle.nodes, showEle.links);
@@ -1078,7 +1081,8 @@ export default async function ForceGraph(
     if(listToShow.length === 0) tooltipVisibility = "hidden";
     if(config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin === "") tooltipVisibility = "hidden";
     if(config.currentLayout === "shortestPath" && (config.shortestPathStart === "" || config.shortestPathEnd === "")) tooltipVisibility = "hidden";
-     d3.select("#tooltipCount")
+     if(expandedAll) tooltipVisibility = "hidden";
+    d3.select("#tooltipCount")
       .text(tooltipVisibility === "visible" && !mouseover ? `${listToShow.length} node${listToShow.length > 1 ? "s" : ""} selected` : "")
 
     tooltip
