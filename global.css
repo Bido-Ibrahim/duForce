@@ -290,7 +290,6 @@ input[type="range"] {
 
 /* reset button (default view only) */
 #resetButton{
-    display: none;
     position: absolute;
     top: 3.7rem;
     left: 3rem;
