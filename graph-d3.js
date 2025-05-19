@@ -3,7 +3,7 @@ import Graph from "graphology";
 import Fuse from 'fuse.js'
 import { config } from "./config";
 import { drawTree, getColorScale, remToPx } from "./tree";
-import { MESSAGES, NODE_RADIUS_RANGE, TOOLTIP_KEYS } from "./constants";
+import { MESSAGES, NODE_RADIUS_RANGE, TICK_TIME, TOOLTIP_KEYS } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
 const resetMenuVisibility = (width) => {
@@ -82,6 +82,7 @@ export default async function ForceGraph(
     return acc;
   }, [])
 
+
   // select or define non data-appended elements
   let baseSvg = d3.select(containerSelector).select("svg");
   let tooltip = d3.select(containerSelector).select(".tooltip");
@@ -122,7 +123,7 @@ export default async function ForceGraph(
       .iterations(3)
     )
     .force("cluster", forceCluster().strength(0.45)) // cluster all nodes belonging to the same submodule.
-    .force("charge", d3.forceManyBody().strength(expandedAll ? -100 : -250));
+    .force("charge", d3.forceManyBody().strength(config.graphDataType === "parameter" ? 0 :(expandedAll ? -100 : -250)));
 
   simulation.stop();
 
@@ -252,9 +253,8 @@ export default async function ForceGraph(
     simulation.nodes(showEle.nodes).force("link").links(showEle.links);
     // restart simulation
     simulation.alphaTarget(0.1).restart();
-    const tickTime = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
-    // stop at calculated tick time (from previous dev)
-    simulation.tick(tickTime);
+     // stop at calculated tick time (from previous dev)
+    simulation.tick(TICK_TIME);
     // stop simulation
     simulation.stop();
     if (config.graphDataType === "parameter") {
@@ -581,10 +581,101 @@ export default async function ForceGraph(
     // otherwise do nothing - no current click action for submodule or segment
   }
 
+  function adjustQuiltMiddle () {
+
+     const runCircleSimulation = (outerRadius, circleNodes) => {
+       circleNodes.map((m) => {
+         m.x = undefined;
+         m.y = undefined;
+       });
+       const circleSimulation = d3
+         .forceSimulation()
+         .force("center", d3.forceCenter(0, 0))
+         .force(
+           "collision",
+           d3.forceCollide((d) => d.radius * 1.05)
+         ) // Prevent overlaps
+         .force("contain", forceContainInCircle(outerRadius));
+
+       circleSimulation.nodes([]);
+       circleSimulation.nodes(circleNodes);
+       circleSimulation.tick(TICK_TIME * 2);
+
+       return circleNodes;
+     }
+
+      const depth3Nodes = showEle.nodes.filter((f) => f.type === "tier3");
+      const depth3ByParent = Array.from(d3.group(depth3Nodes, (d) => d.parent));
+      depth3ByParent.forEach((d) => {
+        const parentNode = showEle.nodes.find((f) => f.id === d[0]);
+        const packNode = config.packData.find((f) => f.id === d[0]);
+        if (parentNode && packNode) {
+          parentNode.radius = packNode.r;
+          packNode.children.forEach((c) => {
+            const childNode = showEle.nodes.find((f) => f.id === c.id);
+            if (childNode) {
+              childNode.x = c.x;
+              childNode.y = c.y;
+              childNode.radius = c.r;
+              childNode.color = "white";
+              childNode.strokeWidth = 0;
+            }
+          });
+        }
+      });
+      const depth2Nodes = showEle.nodes.filter((f) => f.type === "tier2");
+      const depth2ByParent = Array.from(d3.group(depth2Nodes, (d) => d.parent));
+      depth2ByParent.forEach((d) => {
+        const newRadius = Math.sqrt(
+          d[1].reduce(
+            (sum, entry) => sum + entry.radius * 1.8 * (entry.radius * 1.8),
+            0
+          )
+        );
+        const parentNode = showEle.nodes.find((f) => f.id === d[0]);
+        parentNode.radius = newRadius;
+        parentNode.stroke = color(parentNode.id);
+        parentNode.color = "white";
+        parentNode.strokeWidth = 1;
+        runCircleSimulation(newRadius * 0.7, d[1]);
+      });
+
+    simulation.nodes([]).force("link").links([]);
+    simulation
+      .nodes(showEle.nodes.filter((f) => f.type === "tier1"))
+      .force("link")
+      .links(showEle.links);
+
+    // restart simulation
+    simulation.alphaTarget(0.1).restart();
+    // stop at calculated tick time (from previous dev)
+    simulation.tick(TICK_TIME);
+
+    showEle.nodes
+      .filter((f) => f.type === "tier2")
+      .map((m) => {
+        const parentNode = showEle.nodes.find((f) => f.id === m.parent);
+        m.x += parentNode.x;
+        m.y += parentNode.y;
+      });
+
+    showEle.nodes
+      .filter((f) => f.type === "tier3")
+      .map((m) => {
+        const parentNode = showEle.nodes.find((f) => f.id === m.parent);
+        m.x += parentNode.x;
+        m.y += parentNode.y;
+      });
+  }
 
   // Update coordinates of all nodes + links based on current config settings
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
 
+    if((config.graphDataType === "submodule" ||
+      config.graphDataType === "segment") &&
+      showEle.nodes.some((s) => s.type === "tier2")){
+      adjustQuiltMiddle();
+    }
     // redraw tree if needed
     if(config.graphDataType === "parameter" && config.currentLayout === "default"){
       drawTree();
@@ -676,10 +767,12 @@ export default async function ForceGraph(
     const getLinkPath = (d) => {
       // custom path to account for source + target radii so arrows will be visible
       const path = d3.select(`#arrowLinkPath${d.index}`).node();
-      const totalLength = path.getTotalLength();
-      const start = path.getPointAtLength(d.source.radius + 2);
-      const end = path.getPointAtLength(totalLength - (d.target.radius + 2));
-      return `M${start.x},${start.y},L${end.x},${end.y}`
+      if(path){
+        const totalLength = path.getTotalLength();
+        const start = path.getPointAtLength(d.source.radius + 2);
+        const end = path.getPointAtLength(totalLength - (d.target.radius + 2));
+        return `M${start.x},${start.y},L${end.x},${end.y}`
+      }
     }
 
     // append chartLinks to linksGroup and define attributes
@@ -820,6 +913,57 @@ export default async function ForceGraph(
       return "0.2rem"
     }
 
+    const clickQuiltMiddle = (d) => {
+      // somehow convert this!
+        if (showEle.nodes.some((f) => f.parent === d.id)) {
+          d.radius = nodeRadiusScale(d.parameterCount);
+
+          d.strokeWidth = 0;
+          if (d.type === "tier1") {
+            d.color = color(d.id);
+            showEle.nodes = showEle.nodes.filter((f) => !(f.group && f.group === d.id));
+          } else if (d.type === "tier2") {
+            d.color = color(d.group);
+            showEle.nodes = showEle.nodes.filter((f) => !(f.parent === d.id));
+          }
+        } else if (d.type === "tier1") {
+          d._children.forEach((child) => {
+              showEle.nodes.push({
+                id: child.data.id,
+                name: child.data.NAME,
+                radius: nodeRadiusScale(
+                  child._children ? child._children.length : 0
+                ),
+                color: color(d.id),
+                parameterCount:child._children ? child._children.length : 0,
+                group: child.data.subModule,
+                parent: d.id,
+                stroke: "white",
+                strokeWidth: 0,
+                type: "tier2"
+              });
+          });
+        } else if (d.type === "tier2") {
+          const matchingPack = config.packData.find((f) => f.id === d.id);
+          if (matchingPack) {
+            matchingPack.children.forEach((c) => {
+              showEle.nodes.push({
+                id: c.id,
+                name: c.name,
+                radius: c.r,
+                color: "black",
+                parent: matchingPack.id,
+                group: matchingPack.group,
+                strokeWidth: 0,
+                type: "tier3"
+              });
+            });
+            d.radius = matchingPack.r;
+          }
+        }
+        updatePositions(true);
+    }
+
     // append chartNodes to nodesGroup and define attributes
     const nodesGroup = svg.select(".nodeGroup")
       .selectAll(".nodesGroup")
@@ -842,6 +986,18 @@ export default async function ForceGraph(
             d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
             quiltOrMiddleHighlight(d);
           }
+          let tooltipText = `${d.NAME}<br>Click to drill down`;
+          if(d.type === "tier2"){
+            const subModuleName = showEle.nodes.find((f) => f.id === d.group).NAME;
+            tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.name}`;
+          }
+          if(d.type === "tier3"){
+            const subModuleName = showEle.nodes.find((f) => f.id === d.group).NAME;
+            tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.parent}<br><strong>Parameter: </strong>${d.name}`;
+          }
+
+          showTooltipExtra(event.x,event.y,tooltipText, false)
+
         } else {
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           updateTooltip(d, true, event.x);
@@ -864,6 +1020,7 @@ export default async function ForceGraph(
         }
       })
       .on("mouseout", (event,d) => {
+        d3.select(".tooltipExtra").style("visibility","hidden")
           if(config.graphDataType === "parameter"){
             allNodeMouseout();
           if(expandedAll && config.currentLayout === "default"){
@@ -885,20 +1042,21 @@ export default async function ForceGraph(
         }
         // do nothing on click if NN or SP layout
         if(config.graphDataType !== "parameter"){
+          clickQuiltMiddle(d);
           // this holds the highlight view if nodeClicked - clicking again resets
-          if(d.clicked){
-            d.clicked = false;
-            allNodeMouseout();
-          } else {
-            d.clicked = true;
-            quiltOrMiddleHighlight(d);
-          }
-          svg.selectAll(".nodesGroup").each((n) => n.nodeClicked = d.clicked);
-          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
-          svg.selectAll(".nodeCircle")
-            .filter((f) => f.id !== d.id)
-            .attr("stroke-width",0)
-            .each((n) => n.clicked = false);
+        //  if(d.clicked){
+        //    d.clicked = false;
+        //    allNodeMouseout();
+        //  } else {
+        //    d.clicked = true;
+        //    quiltOrMiddleHighlight(d);
+        //  }
+        //  svg.selectAll(".nodesGroup").each((n) => n.nodeClicked = d.clicked);
+        //  d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+       //   svg.selectAll(".nodeCircle")
+        //    .filter((f) => f.id !== d.id)
+         //   .attr("stroke-width",0)
+         //   .each((n) => n.clicked = false);
 
         }
       })
@@ -919,8 +1077,8 @@ export default async function ForceGraph(
       .attr("r", (d) => d.radius)
       .attr("fill", (d) => d.color)
       .attr("stroke", "white")
-      .attr("stroke-width", (d) => getNodeStrokeElements("width",d))
-      .attr("stroke-opacity", (d) => getNodeStrokeElements("opacity",d))
+      .attr("stroke-width", (d) => d.strokeWidth ? d.strokeWidth : getNodeStrokeElements("width",d))
+      .attr("stroke-opacity", (d) => d.strokeWidth ? 1 : getNodeStrokeElements("opacity",d))
 
     const pulseNNCircle = () => {
       // node animation for NN origin
@@ -984,6 +1142,33 @@ export default async function ForceGraph(
     return { x: x / z, y: y / z };
   }
 
+  function forceContainInCircle  (radius)  {
+    let nodes;
+
+    function force(alpha) {
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const dx = node.x;
+        const dy = node.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Use node radius if available, else assume 0
+        const r = node.r || 0;
+
+        if (dist + r > radius) {
+          const scale = (radius - r) / dist;
+          node.x = dx * scale;
+          node.y = dy * scale;
+        }
+      }
+    }
+
+    force.initialize = function (_nodes) {
+      nodes = _nodes;
+    };
+
+    return force;
+  }
   function forceCluster() {
     var strength = 0.8;
     let nodes;
@@ -1150,25 +1335,30 @@ export default async function ForceGraph(
     context.font = `${fontSize}px Arial`;
     return context.measureText(text).width;
   }
-  const showTooltipExtra = (x, y,textContent) => {
-    const textSize = remToPx(0.5);
-    const textWidth = measureWidth(textContent,textSize);
-    let tooltipLeft = x - (textWidth/2);
-    if((x + textWidth) > width){
-      tooltipLeft = x - textWidth;
+  const showTooltipExtra = (x, y,textContent, centreContent = true) => {
+    let tooltipLeft = x + 10;
+    let tooltipTop = y;
+    if(centreContent){
+      const textSize = remToPx(0.5);
+      const textWidth = measureWidth(textContent,textSize);
+      tooltipLeft = x - (textWidth/2);
+      if((x + textWidth) > width){
+        tooltipLeft = x - textWidth;
+      }
+      if((x - textWidth) < 0){
+        tooltipLeft = x;
+      }
+      tooltipTop = y + (textSize * 2);
+      if((tooltipTop + (textSize * 2)) > height){
+        tooltipTop = y - (textSize * 4);
+      }
     }
-    if((x - textWidth) < 0){
-      tooltipLeft = x;
-    }
-    let tooltipTop = y + (textSize * 2);
-    if((tooltipTop + (textSize * 2)) > height){
-      tooltipTop = y - (textSize * 4);
-    }
+
     tooltipExtra.style("left", `${tooltipLeft}px`)
       .style("font-size", "0.5rem")
       .style("top",`${tooltipTop}px`)
       .style("visibility", "visible")
-      .text(textContent)
+      .html(textContent)
 
   }
 

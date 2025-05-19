@@ -10,12 +10,13 @@ export const config = {
   shortestPathEnd: "",
   showArrows: true,
   showSingleNodes: true,
-  // data set on initial load
+  // graph data set on initial load
   allNodeNames: [],
   hierarchyData: {},
   subModules: [],
   parameterData: {},
-  // data set on initial load - for tree menu
+  packData: {},
+  // tree data set on initial load
   expandedTreeData: {}, // stored for expandAll button
   collapsedTreeData: {}, // stored for collapseAll button
   currentTreeData: {}, // current tree expansion status
@@ -40,6 +41,13 @@ export const config = {
       this.hierarchyData = newObject;
     } else {
       console.error("Expected an array for hierarchyData.");
+    }
+  },
+  setPackData(newObject) {
+    if (typeof newObject === "object") {
+      this.packData = newObject;
+    } else {
+      console.error("Expected an array for packData.");
     }
   },
   setParameterData(newObject) {
