@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import {  COLOR_SCALE_RANGE, PANEL_WIDTH } from "./constants";
+import {  COLOR_SCALE_RANGE } from "./constants";
 import { config } from "./config";
 import ForceGraph from "./graph-d3";
 

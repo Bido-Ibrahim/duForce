@@ -16,6 +16,42 @@ const dataNullValueCheck = (nodeData, dataType) => {
   return nodeData.filter((f) => f[dataType] !== null);
 }
 
+const getPackData = (hierarchy) => {
+    hierarchy.count();
+    const descendants = hierarchy.descendants();
+    const leaves = descendants.filter((d) => !d.children);
+    leaves.forEach((d, i) => (d.index = i));
+
+    // Compute the layout.
+    d3.pack().size([500, 500]).padding(1)(hierarchy);
+
+    const depth2descendants = hierarchy
+      .descendants()
+      .filter((f) => f.depth === 2)
+      .reduce((acc, entry) => {
+        const children = entry.children.reduce((childAcc, child) => {
+          childAcc.push({
+            x: child.x - entry.x,
+            y: child.y - entry.y,
+            r: child.r,
+            name: child.data.NAME,
+            id: child.data.id
+          });
+          return childAcc;
+        }, []);
+        acc.push({
+          name: entry.data.NAME,
+          id: entry.data.id,
+          group: entry.data.subModule,
+          children,
+          r: entry.r
+        });
+
+        return acc;
+      }, []);
+
+    return depth2descendants;
+}
 const generateParameterData = (dataNodes, dataLinks) => {
   // building nodes and links here
   const nodeIdVar = "NAME";
@@ -239,7 +275,6 @@ async function getData() {
 
       // get hierarchy from node names
       const treeData = getHierarchy(resultNodesTrunc);
-
       // mapping submodules and segments to their child nodes (for tree selection)
       config.setTier1And2Mapper(treeData.descendants().filter((f) => f.data.type === "tier3").reduce((acc, entry) => {
         const {subModule, parent, NAME} = entry.data;
@@ -252,11 +287,11 @@ async function getData() {
 
       // copy hierarchy data
       const nodesCopy = treeData.copy();
+      config.setPackData(getPackData(treeData.copy()));
       // set more config variables
       setHierarchyData(nodesCopy);
       // call the tree
       VariableTree(treeData);
-
     } else {
       throw new Error("Invalid response format");
     }
