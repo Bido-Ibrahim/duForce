@@ -116,13 +116,13 @@ export default async function ForceGraph(
       } // default from https://d3js.org/d3-force/link as distance doesn't matter here
       return 1 / Math.min(link.source.radiusVar, link.target.radiusVar)
     }))
-    .force("x", d3.forceX((d) => d.x))
-    .force("y", d3.forceY((d) => d.y))
+    .force("x", d3.forceX((d) => config.graphDataType === "parameter" ? d.x : 0))
+    .force("y", d3.forceY((d) => config.graphDataType === "parameter" ? d.y :0))
     .force("collide", d3.forceCollide()
-      .radius((d) => config.graphDataType === "parameter" ? d.radius : d.radius * 2)
+      .radius((d) => config.graphDataType === "parameter" ? d.radius : Math.min(d.radius * 4, 100))
       .iterations(3)
     )
-    .force("cluster", forceCluster().strength(0.45)) // cluster all nodes belonging to the same submodule.
+    .force("cluster", forceCluster().strength(config.graphDataType === "parameter" ? 0.45 : 0)) // cluster all nodes belonging to the same submodule.
     .force("charge", d3.forceManyBody().strength(config.graphDataType === "parameter" ? 0 :(expandedAll ? -100 : -250)));
 
   simulation.stop();
