@@ -118,12 +118,13 @@ export default async function ForceGraph(
     }))
     .force("x", d3.forceX((d) => config.graphDataType === "parameter" ? d.x : 0))
     .force("y", d3.forceY((d) => config.graphDataType === "parameter" ? d.y :0))
-    .force("collide", d3.forceCollide()
-      .radius((d) => config.graphDataType === "parameter" ? d.radius : Math.min(d.radius * 4, 100))
+    .force("collide", d3.forceCollide() // change segment when ready
+      .radius((d) => config.graphDataType !== "submodule" ? (config.graphDataType === "segment" ? d.radius * 1.7 : d.radius) : Math.min(d.radius * 4, 100))
       .iterations(3)
-    )
-    .force("cluster", forceCluster().strength(config.graphDataType === "parameter" ? 0.45 : 0)) // cluster all nodes belonging to the same submodule.
-    .force("charge", d3.forceManyBody().strength(config.graphDataType === "parameter" ? 0 :(expandedAll ? -100 : -250)));
+    ) // change segment when ready
+    .force("cluster", forceCluster().strength(config.graphDataType !== "submodule" ? 0.45 : 0)) // cluster all nodes belonging to the same submodule.
+    // change segment when ready
+    .force("charge", d3.forceManyBody().strength(config.graphDataType !== "submodule" ? (expandedAll ? -100 : -250) : 0));
 
   simulation.stop();
 
@@ -671,8 +672,8 @@ export default async function ForceGraph(
   // Update coordinates of all nodes + links based on current config settings
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
 
-    if((config.graphDataType === "submodule" ||
-      config.graphDataType === "segment") &&
+    // add segment when ready
+    if((config.graphDataType === "submodule" ) &&
       showEle.nodes.some((s) => s.type === "tier2")){
       adjustQuiltMiddle();
     }
@@ -1041,7 +1042,8 @@ export default async function ForceGraph(
           clickNode(d.NAME, "node", graph)
         }
         // do nothing on click if NN or SP layout
-        if(config.graphDataType !== "parameter"){
+        // add segment when ready
+        if(config.graphDataType === "submodule"){
           clickQuiltMiddle(d);
           // this holds the highlight view if nodeClicked - clicking again resets
         //  if(d.clicked){
