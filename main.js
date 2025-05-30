@@ -16,42 +16,6 @@ const dataNullValueCheck = (nodeData, dataType) => {
   return nodeData.filter((f) => f[dataType] !== null);
 }
 
-const getPackData = (hierarchy) => {
-    hierarchy.count();
-    const descendants = hierarchy.descendants();
-    const leaves = descendants.filter((d) => !d.children);
-    leaves.forEach((d, i) => (d.index = i));
-
-    // Compute the layout.
-    d3.pack().size([500, 500]).padding(1)(hierarchy);
-
-    const depth2descendants = hierarchy
-      .descendants()
-      .filter((f) => f.depth === 2)
-      .reduce((acc, entry) => {
-        const children = entry.children.reduce((childAcc, child) => {
-          childAcc.push({
-            x: child.x - entry.x,
-            y: child.y - entry.y,
-            r: child.r,
-            name: child.data.NAME,
-            id: child.data.id
-          });
-          return childAcc;
-        }, []);
-        acc.push({
-          name: entry.data.NAME,
-          id: entry.data.id,
-          group: entry.data.subModule,
-          children,
-          r: entry.r
-        });
-
-        return acc;
-      }, []);
-
-    return depth2descendants;
-}
 const generateParameterData = (dataNodes, dataLinks) => {
   // building nodes and links here
   const nodeIdVar = "NAME";
@@ -61,7 +25,8 @@ const generateParameterData = (dataNodes, dataLinks) => {
   const nodes = dataNodes.reduce((acc, node) => {
     node.id = node[nodeIdVar];
     node.type = "tier3";
-    node.subModule = `submodule-${node.SUBMODULE}`
+    node.subModule = `submodule-${node.SUBMODULE}`;
+    node.segment = `segment-${node.SEGMENT}`;
     acc.push(node);
     return acc;
   }, [])
@@ -70,12 +35,14 @@ const generateParameterData = (dataNodes, dataLinks) => {
   const links = dataLinks.reduce((acc, link) =>  {
     link.source = link[sourceIdVar];
     link.target = link[targetIdVar];
+    link.direction = "out";
     // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS and set direction
     if(!acc.some((s) => s.source === link.source && s.target === link.target)){
       const oppositeLink = acc.find((f) => f.source === link.target && f.target === link.source);
       if(oppositeLink){
         oppositeLink.direction = "both";
       } else {
+
         acc.push(link);
       }
     }
@@ -164,61 +131,92 @@ const getHierarchy = (nodes) => {
     });
 }
 
-const setHierarchyData = (nodesCopy) => {
-
-  const getHierarchyLinks = (nodeSet, allLinks) =>  Array.from(nodeSet).reduce((acc, parent) => {
-    // used below
-    const getLinkDirection = (linkIn, linkOut) => {
-      if(linkIn && linkOut) return "both";
-      if(linkIn) return "inbound";
-      return "outbound";
-    }
-    // get non parent nodes + paramenters
-    const otherNodes = Array.from(nodeSet).filter((f) => f !== parent);
-    const nodeParameters = config.tier1And2Mapper[parent];
-    otherNodes.forEach((node) => {
-      const currentParameters = config.tier1And2Mapper[node];
-      const linkOut = allLinks.some((s) => nodeParameters.includes(s.source)
-        && currentParameters.includes(s.target));
-      const linkIn = allLinks.some((s) => nodeParameters.includes(s.target)
-        && currentParameters.includes(s.source));
-      const direction = getLinkDirection(linkIn,linkOut);
-      // define links and direction
-      if(!acc.some((s) => (s.source === parent && s.target === node) ||
-        (s.source === node && s.target === parent))){
-        // add if it doesn't exist already
-        acc.push({source: parent, target: node, direction});
-      }
-    })
-    return acc;
-  },[]);
-
+const setHierarchyData = (nodesCopy, resultEdges) => {
   const subModuleNames = new Set();
   const segmentNames = new Set();
+  const allLinks = [];
+
+  const getOppositeIds = (leaves) => {
+    const parameterSet = leaves.map((m) => m.data.id);
+    // filter links to nodes which aren't this submodule
+    const matchingLinks = resultEdges.filter((f) => parameterSet.includes(f.source) || parameterSet.includes(f.target)
+      && !(parameterSet.includes(f.source) && parameterSet.includes(f.target)))
+      .map((m) => m = {id: parameterSet.includes(m.source) ? m.target : m.source, direction: m.direction});
+    return [...new Set(matchingLinks.map((m) => m.id))]
+      .map((m) => m = {id:m, direction: matchingLinks.some((s) => s.direction === "both") ? "both" : "out"});
+
+  }
+
+  const getOppositeNodes = (oppositeIds) => oppositeIds.reduce((acc, entry) => {
+    const matchingNode = config.parameterData.nodes.find((f) => f.id === entry);
+    acc.push({
+      subModule: matchingNode.subModule,
+      segment: matchingNode.segment,
+      parameter: matchingNode.id
+    })
+    return acc;
+  },[])
+
+  const addToDirectionGroup = (group, oppositeIdAndDirection) =>  group.forEach((s) => {
+    oppositeIdAndDirection.push({
+      id: s[0],
+      direction: s[1].some((s) => s.direction === "both") ? "both" : "out"
+    })
+  });
+
+  const getDirection = (linkId, oppositeIdAndDirection) => oppositeIdAndDirection.find((f) => f.id === linkId)?.direction || "none"
+
   // add extra properties and populate submodule + segment sets
   nodesCopy.descendants()
     .map((m) => {
-      if(m.depth === 2){
-        m.data.parameterCount = m.children.length;
-        m.children = undefined;
-        m.data.children = undefined;
-        segmentNames.add(m.data.id);
-      }
+      m.id = m.data.id;
+      m.type = `tier${m.depth}`;
+      m.group = m.data.id;
+      m.subModule = m.data.subModule;
       if(m.depth === 1){
         m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
         subModuleNames.add(m.data.id);
+        const oppositeIdAndDirection = getOppositeIds(m.leaves());
+        const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
+            .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && s.subModule === m.data.id));
+        const oppositeNodes = getOppositeNodes(oppositeIds);
+        const subModuleGroup = Array.from(d3.group(oppositeNodes, (g) => g.subModule));
+        const subModuleSet = subModuleGroup.map((m) => m[0]);
+        addToDirectionGroup(subModuleGroup,oppositeIdAndDirection);
+        const segmentGroup = Array.from(d3.group(oppositeNodes, (g) => g.segment));
+        const segmentSet = segmentGroup.map((m) => m[0]);
+        addToDirectionGroup(segmentGroup,oppositeIdAndDirection);
+        // submodule -> submodule, submodule -> segment, segment -> parameter
+        allLinks.push(
+          ...[...oppositeIds, ...subModuleSet, ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }))
+        );
+      } else if(m.depth === 2){
+        m.data.parameterCount = m.children.length;
+        segmentNames.add(m.data.id);
+        const oppositeIdAndDirection = getOppositeIds(m.leaves());
+        const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
+          .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && (s.segment === m.data.id || s.subModule === m.data.subModule)));
+        const oppositeNodes = getOppositeNodes(oppositeIds);
+        const segmentGroup = Array.from(d3.group(oppositeNodes, (g) => g.segment));
+        const segmentSet = segmentGroup.map((m) => m[0]);
+        addToDirectionGroup(segmentGroup,oppositeIdAndDirection);
+        // segment -> segment, segment -> parameter
+        allLinks.push(
+          ...[...oppositeIds,  ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }))
+        );
+      } else if (m.depth === 3){
+        const oppositeIdAndDirection = getOppositeIds(m.leaves());
+        const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
+          .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && (s.segment === m.data.id || s.subModule === m.data.subModule)));
+        // parameter -> parameter
+        allLinks.push(
+          ...[...oppositeIds].map(d => ({ source: m.data.id, target: d,direction: getDirection(d,oppositeIdAndDirection)}))
+        )
       }
     })
-  // get submodule and segment links
-  const subModuleLinks = getHierarchyLinks(subModuleNames,config.parameterData.links);
-  const segmentLinks = getHierarchyLinks(segmentNames,config.parameterData.links);
-  // filter as needed (submodules = depth 1, segments = depth 2)
-  const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1).map((m) => m.data);
-  const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2).map((m) => m.data);
-  // set config data
-  config.setHierarchyData(
-    {submodule: {nodes: subModuleNodes, links: subModuleLinks, nodeNames: Array.from(subModuleNames)},
-      segment:{nodes: segmentNodes, links: segmentLinks, nodeNames: Array.from(segmentNames)}})
+  const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1);
+  const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2);
+  config.setHierarchyData({subModuleNodes, segmentNodes, allLinks, segmentNames, subModuleNames})
 
 }
 
@@ -287,9 +285,8 @@ async function getData() {
 
       // copy hierarchy data
       const nodesCopy = treeData.copy();
-      config.setPackData(getPackData(treeData.copy()));
       // set more config variables
-      setHierarchyData(nodesCopy);
+      setHierarchyData(nodesCopy, resultEdges);
       // call the tree
       VariableTree(treeData);
     } else {

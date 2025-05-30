@@ -63,7 +63,7 @@ export default async function ForceGraph(
   // set scales
   const radiusMax = config.graphDataType === "parameter" ?
     d3.max(Object.values(nodeLinkCounts)) :
-    d3.max(showEle.nodes, (d) => d.parameterCount)
+    d3.max(showEle.nodes, (d) => d.data.parameterCount)
 
   const nodeRadiusScale = d3
     .scaleSqrt()
@@ -75,8 +75,8 @@ export default async function ForceGraph(
 
   // add additional node variables
   showEle.nodes = showEle.nodes.reduce((acc, node) => {
-    node.radiusVar = config.graphDataType === "parameter" ? nodeLinkCounts[node.id] : node.parameterCount;
-    node.color = color(node.subModule);
+    node.radiusVar = config.graphDataType === "parameter" ? nodeLinkCounts[node.id] : node.data.parameterCount;
+    node.color = color(config.graphDataType === "parameter" ? node.subModule : node.data.subModule);
     node.radius = nodeRadiusScale(node.radiusVar);
     acc.push(node);
     return acc;
@@ -166,7 +166,7 @@ export default async function ForceGraph(
 
   // node visibility can depend on zoom level
   const getNodeLabelDisplay = (d) => {
-    if(config.graphDataType !== "parameter" || config.currentLayout === "shortestPath") return "block";
+    if((config.graphDataType !== "parameter" && d.type !== "tier3") || config.currentLayout === "shortestPath") return "block";
     if(config.currentLayout === "nearestNeighbour") return "block";
     if(config.currentLayout === "default" && !expandedAll) {
       return config.selectedNodeNames.includes(d.id) ? "block" : "none";
@@ -589,15 +589,6 @@ export default async function ForceGraph(
   // Update coordinates of all nodes + links based on current config settings
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
 
-    // add segment when ready
-    if((config.graphDataType !== "parameter" ) &&
-      showEle.nodes.some((s) => s.type === "tier2")){
-      simulation.alphaTarget(0.1).restart();
-      // stop at calculated tick time (from previous dev)
-      simulation.tick(TICK_TIME);
-      // stop simulation
-      simulation.stop();
-    }
     // redraw tree if needed
     if(config.graphDataType === "parameter" && config.currentLayout === "default"){
       drawTree();
@@ -670,6 +661,28 @@ export default async function ForceGraph(
          chartNodes.some((s) => s.NAME === getTargetId(f)));
     }
 
+    if(config.graphDataType !== "parameter"){
+      chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
+        if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
+          if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
+          acc.push({
+            source: link.source,
+            target: link.target,
+            direction: link.direction,
+            index
+          })
+        }
+        return acc;
+      },[])
+      simulation.nodes([]).force("link").links([])
+      simulation.nodes(showEle.nodes).force("link").links(chartLinks);
+      simulation.alphaTarget(0.1).restart();
+      // stop at calculated tick time (from previous dev)
+      simulation.tick(TICK_TIME);
+      // stop simulation
+      simulation.stop();
+
+    }
 
     // functions for defining link attributes
     const checkLinkSelected = (link) => {
@@ -851,6 +864,7 @@ export default async function ForceGraph(
             ? descendant.children.map((m) => m.data.id)
             : [],
           parameterCount: descendant.children ? descendant.leaves().length : 0,
+          radiusVar: descendant.children ? descendant.leaves().length : 0,
           group: nodeId,
           parent: descendant.parent.data.id,
           stroke: "white",
@@ -862,19 +876,22 @@ export default async function ForceGraph(
         };
     }
     const clickQuiltMiddle = (d) => {
-      if((d._children || d.children) && d.type !== "tier3"){
-        const childIds = d.children ? d.children : d._children.map((m) => m.id);
+      if((d.children) && d.type !== "tier3"){
+        const childIds = d.children.length === 0 ? [] : typeof d.children[0] !== "object" ? d.children : d.children.map((m) => m.data.id);
         childIds.forEach((child) => {
           const newType = d.type === "tier1" ? "tier2" : "tier3";
           showEle.nodes.push(getNewQuiltMiddleNode(child, d.x, d.y, newType));
-          debugger;
         })
-        showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
 
+        showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
       }
 
       updatePositions(true);
     }
+
+    const isNormalClick = (event) =>
+      !(event.shiftKey || event.altKey || event.ctrlKey || event.metaKey);
+
 
     // append chartNodes to nodesGroup and define attributes
     const nodesGroup = svg.select(".nodeGroup")
@@ -898,7 +915,7 @@ export default async function ForceGraph(
             d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
             quiltOrMiddleHighlight(d);
           }
-          let tooltipText = `${d.NAME}<br>Click to drill down`;
+          let tooltipText = `${d.name || d.data.NAME}<br>Click to drill down`;
           if(d.type === "tier2"){
             // get submoduleName from config
             const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
@@ -957,7 +974,22 @@ export default async function ForceGraph(
         // do nothing on click if NN or SP layout
         // add segment when ready
         if(config.graphDataType === "submodule"){
-          clickQuiltMiddle(d);
+          if (isNormalClick(event) && d.children && d.type !== "tier3") {
+            clickQuiltMiddle(d);
+          } else if (d.type === "tier3") {
+            //delete all depth 2 with my parent
+            showEle.nodes = showEle.nodes.filter((f) => (f.parent?.id || f.parent) !== d.parent);
+            // add parent if depth 1 = delete all
+            showEle.nodes.push(getNewQuiltMiddleNode(d.parent, d.x, d.y, "tier2"));
+            updatePositions(true);
+          } else if (d.type === "tier2") {
+            // delete all with matching subModule
+            showEle.nodes = showEle.nodes.filter((f) => f.subModule !== d.subModule);
+            // add submodule parent
+            showEle.nodes.push(getNewQuiltMiddleNode(d.subModule, d.x, d.y, "tier1"));
+            updatePositions(true);
+          }
+
           // this holds the highlight view if nodeClicked - clicking again resets
         //  if(d.clicked){
         //    d.clicked = false;
@@ -1024,7 +1056,7 @@ export default async function ForceGraph(
       .attr("dy",getNodeLabelDy)
       .attr("fill", "white")
       .attr("font-size",getNodeLabelSize)
-      .text((d) => d.NAME);
+      .text((d) => d.NAME || d.data?.NAME || d.name);
 
     // if request, zoom to bounds of current data
     if(zoomToBounds){
@@ -1088,10 +1120,11 @@ export default async function ForceGraph(
     var strength = 0.8;
     let nodes;
     function force(alpha) {
-      const centroids = d3.rollup(nodes, centroid, (r) => r.subModule);
+
+      const centroids = d3.rollup(nodes, centroid, (r) => config.graphDataType === "parameter" ? r.subModule : r.group);
       const l = alpha * strength;
       for (const d of nodes) {
-        const { x: cx, y: cy } = centroids.get(d.subModule);
+        const { x: cx, y: cy } = centroids.get(config.graphDataType === "parameter" ? d.subModule : d.group);
         d.vx -= (d.x - cx) * l;
         d.vy -= (d.y - cy) * l;
       }

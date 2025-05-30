@@ -6,8 +6,8 @@ import ForceGraph from "./graph-d3";
 // functions to render graph when ready (or after a collapsible tree change)
 const getGraphData = () => {
   if(config.graphDataType === "parameter") return config.parameterData;
-  if(config.graphDataType === "segment") return config.hierarchyData["segment"];
-  return config.hierarchyData["submodule"];
+  if(config.graphDataType === "segment") return {nodes: config.hierarchyData["segmentNodes"], links: []};
+  return {nodes: config.hierarchyData["subModuleNodes"],links: []};
 }
 export const renderGraph = (initial) => {
 
