@@ -15,7 +15,6 @@ export const config = {
   hierarchyData: {},
   subModules: [],
   parameterData: {},
-  packData: {},
   // tree data set on initial load
   expandedTreeData: {}, // stored for expandAll button
   collapsedTreeData: {}, // stored for collapseAll button
@@ -41,13 +40,6 @@ export const config = {
       this.hierarchyData = newObject;
     } else {
       console.error("Expected an array for hierarchyData.");
-    }
-  },
-  setPackData(newObject) {
-    if (typeof newObject === "object") {
-      this.packData = newObject;
-    } else {
-      console.error("Expected an array for packData.");
     }
   },
   setParameterData(newObject) {
