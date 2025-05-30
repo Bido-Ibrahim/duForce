@@ -973,7 +973,7 @@ export default async function ForceGraph(
         }
         // do nothing on click if NN or SP layout
         // add segment when ready
-        if(config.graphDataType === "submodule"){
+        if(config.graphDataType !== "parameter"){
           if (isNormalClick(event) && d.children && d.type !== "tier3") {
             clickQuiltMiddle(d);
           } else if (d.type === "tier3") {
@@ -1089,42 +1089,16 @@ export default async function ForceGraph(
     return { x: x / z, y: y / z };
   }
 
-  function forceContainInCircle  (radius)  {
-    let nodes;
 
-    function force(alpha) {
-      for (let i = 0; i < nodes.length; i++) {
-        const node = nodes[i];
-        const dx = node.x;
-        const dy = node.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Use node radius if available, else assume 0
-        const r = node.r || 0;
-
-        if (dist + r > radius) {
-          const scale = (radius - r) / dist;
-          node.x = dx * scale;
-          node.y = dy * scale;
-        }
-      }
-    }
-
-    force.initialize = function (_nodes) {
-      nodes = _nodes;
-    };
-
-    return force;
-  }
   function forceCluster() {
     var strength = 0.8;
     let nodes;
     function force(alpha) {
 
-      const centroids = d3.rollup(nodes, centroid, (r) => config.graphDataType === "parameter" ? r.subModule : r.group);
+      const centroids = d3.rollup(nodes, centroid, (r) => config.graphDataType === "parameter" ?   r.subModule : r.group);
       const l = alpha * strength;
       for (const d of nodes) {
-        const { x: cx, y: cy } = centroids.get(config.graphDataType === "parameter" ? d.subModule : d.group);
+        const { x: cx, y: cy } = centroids.get(config.graphDataType === "parameter" ?  d.subModule : d.group );
         d.vx -= (d.x - cx) * l;
         d.vy -= (d.y - cy) * l;
       }

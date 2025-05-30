@@ -306,7 +306,12 @@ export default function VariableTree(data) {
       config.nearestNeighbourOrigin = "";
       config.tooltipRadio = "none";
       config.currentLayout = "default";
-      const selectedNames = config.graphDataType === "parameter" ? selectedNodeNamesCopy : config.hierarchyData[config.graphDataType].nodeNames;
+      const getSelectedNames = () => {
+        if(config.graphDataType === "parameter") return selectedNodeNamesCopy;
+        if(config.graphDataType === "submodule") return config.hierarchyData.subModuleNames;
+        return config.hierarchyData.segmentNames;
+      }
+      const selectedNames = getSelectedNames();
       const nodeNamesCopy = JSON.parse(JSON.stringify(selectedNames));
       config.setSelectedNodeNames(nodeNamesCopy);
       svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")

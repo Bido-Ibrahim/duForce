@@ -216,7 +216,8 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
     })
   const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1);
   const segmentNodes = nodesCopy.descendants().filter((f) => f.depth === 2);
-  config.setHierarchyData({subModuleNodes, segmentNodes, allLinks, segmentNames, subModuleNames})
+  segmentNodes.map((m) => m.group = m.subModule);
+  config.setHierarchyData({subModuleNodes, segmentNodes, allLinks, segmentNames: Array.from(segmentNames), subModuleNames: Array.from(subModuleNames)})
 
 }
 
