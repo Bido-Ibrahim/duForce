@@ -107,6 +107,7 @@ export default async function ForceGraph(
   // graphology component (used for NN and SP)
   const graph = initGraphologyGraph(showEle.nodes, showEle.links);
 
+  const getQuiltMiddleDepthMultiple = (type) => (type === "tier1" ? 8 : type === "tier2" ? 6 : 1.4);
   // Initialize simulation
   const simulation = d3
     .forceSimulation()
@@ -116,15 +117,16 @@ export default async function ForceGraph(
       } // default from https://d3js.org/d3-force/link as distance doesn't matter here
       return 1 / Math.min(link.source.radiusVar, link.target.radiusVar)
     }))
-    .force("x", d3.forceX((d) => config.graphDataType === "parameter" ? d.x : 0))
-    .force("y", d3.forceY((d) => config.graphDataType === "parameter" ? d.y :0))
+    .force("x", d3.forceX((d) => d.x ? d.x : 0).strength(config.graphDataType === "parameter" ? 0.1 : 0.2))
+    .force("y", d3.forceY((d) => d.y ? d.y : 0).strength(config.graphDataType === "parameter" ? 0.1 : 0.2))
     .force("collide", d3.forceCollide() // change segment when ready
-      .radius((d) => config.graphDataType !== "submodule" ? (config.graphDataType === "segment" ? d.radius * 1.7 : d.radius) : Math.min(d.radius * 4, 100))
-      .iterations(3)
+      .radius((d) => config.graphDataType !== "parameter" ? d.radius * getQuiltMiddleDepthMultiple(d.type) : d.radius)
+      .strength(0.4)
+      .iterations(4)
     ) // change segment when ready
-    .force("cluster", forceCluster().strength(config.graphDataType !== "submodule" ? 0.45 : 0)) // cluster all nodes belonging to the same submodule.
+    .force("cluster", forceCluster().strength(config.graphDataType === "parameter" ? 0.45 : 1)) // cluster all nodes belonging to the same submodule.
     // change segment when ready
-    .force("charge", d3.forceManyBody().strength(config.graphDataType !== "submodule" ? (expandedAll ? -100 : -250) : 0));
+    .force("charge", d3.forceManyBody().strength(config.graphDataType === "parameter" ? (expandedAll ? -100 : -250) : 0));
 
   simulation.stop();
 
@@ -582,100 +584,19 @@ export default async function ForceGraph(
     // otherwise do nothing - no current click action for submodule or segment
   }
 
-  function adjustQuiltMiddle () {
 
-     const runCircleSimulation = (outerRadius, circleNodes) => {
-       circleNodes.map((m) => {
-         m.x = undefined;
-         m.y = undefined;
-       });
-       const circleSimulation = d3
-         .forceSimulation()
-         .force("center", d3.forceCenter(0, 0))
-         .force(
-           "collision",
-           d3.forceCollide((d) => d.radius * 1.05)
-         ) // Prevent overlaps
-         .force("contain", forceContainInCircle(outerRadius));
-
-       circleSimulation.nodes([]);
-       circleSimulation.nodes(circleNodes);
-       circleSimulation.tick(TICK_TIME * 2);
-
-       return circleNodes;
-     }
-
-      const depth3Nodes = showEle.nodes.filter((f) => f.type === "tier3");
-      const depth3ByParent = Array.from(d3.group(depth3Nodes, (d) => d.parent));
-      depth3ByParent.forEach((d) => {
-        const parentNode = showEle.nodes.find((f) => f.id === d[0]);
-        const packNode = config.packData.find((f) => f.id === d[0]);
-        if (parentNode && packNode) {
-          parentNode.radius = packNode.r;
-          packNode.children.forEach((c) => {
-            const childNode = showEle.nodes.find((f) => f.id === c.id);
-            if (childNode) {
-              childNode.x = c.x;
-              childNode.y = c.y;
-              childNode.radius = c.r;
-              childNode.color = "white";
-              childNode.strokeWidth = 0;
-            }
-          });
-        }
-      });
-      const depth2Nodes = showEle.nodes.filter((f) => f.type === "tier2");
-      const depth2ByParent = Array.from(d3.group(depth2Nodes, (d) => d.parent));
-      depth2ByParent.forEach((d) => {
-        const newRadius = Math.sqrt(
-          d[1].reduce(
-            (sum, entry) => sum + entry.radius * 1.8 * (entry.radius * 1.8),
-            0
-          )
-        );
-        const parentNode = showEle.nodes.find((f) => f.id === d[0]);
-        parentNode.radius = newRadius;
-        parentNode.stroke = color(parentNode.id);
-        parentNode.color = "white";
-        parentNode.strokeWidth = 1;
-        runCircleSimulation(newRadius * 0.7, d[1]);
-      });
-
-    simulation.nodes([]).force("link").links([]);
-    simulation
-      .nodes(showEle.nodes.filter((f) => f.type === "tier1"))
-      .force("link")
-      .links(showEle.links);
-
-    // restart simulation
-    simulation.alphaTarget(0.1).restart();
-    // stop at calculated tick time (from previous dev)
-    simulation.tick(TICK_TIME);
-
-    showEle.nodes
-      .filter((f) => f.type === "tier2")
-      .map((m) => {
-        const parentNode = showEle.nodes.find((f) => f.id === m.parent);
-        m.x += parentNode.x;
-        m.y += parentNode.y;
-      });
-
-    showEle.nodes
-      .filter((f) => f.type === "tier3")
-      .map((m) => {
-        const parentNode = showEle.nodes.find((f) => f.id === m.parent);
-        m.x += parentNode.x;
-        m.y += parentNode.y;
-      });
-  }
 
   // Update coordinates of all nodes + links based on current config settings
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
 
     // add segment when ready
-    if((config.graphDataType === "submodule" ) &&
+    if((config.graphDataType !== "parameter" ) &&
       showEle.nodes.some((s) => s.type === "tier2")){
-      adjustQuiltMiddle();
+      simulation.alphaTarget(0.1).restart();
+      // stop at calculated tick time (from previous dev)
+      simulation.tick(TICK_TIME);
+      // stop simulation
+      simulation.stop();
     }
     // redraw tree if needed
     if(config.graphDataType === "parameter" && config.currentLayout === "default"){
@@ -749,6 +670,7 @@ export default async function ForceGraph(
          chartNodes.some((s) => s.NAME === getTargetId(f)));
     }
 
+
     // functions for defining link attributes
     const checkLinkSelected = (link) => {
       if(config.currentLayout === "default" && config.graphDataType === "parameter"){
@@ -774,6 +696,7 @@ export default async function ForceGraph(
         const end = path.getPointAtLength(totalLength - (d.target.radius + 2));
         return `M${start.x},${start.y},L${end.x},${end.y}`
       }
+      return "";
     }
 
     // append chartLinks to linksGroup and define attributes
@@ -914,55 +837,43 @@ export default async function ForceGraph(
       return "0.2rem"
     }
 
-    const clickQuiltMiddle = (d) => {
-      // somehow convert this!
-        if (showEle.nodes.some((f) => f.parent === d.id)) {
-          d.radius = nodeRadiusScale(d.parameterCount);
+    const getNewQuiltMiddleNode = (nodeId, x,y, type) => {
+        const descendant = config.expandedTreeData.descendants().find((f) => f.data.id === nodeId);
 
-          d.strokeWidth = 0;
-          if (d.type === "tier1") {
-            d.color = color(d.id);
-            showEle.nodes = showEle.nodes.filter((f) => !(f.group && f.group === d.id));
-          } else if (d.type === "tier2") {
-            d.color = color(d.group);
-            showEle.nodes = showEle.nodes.filter((f) => !(f.parent === d.id));
-          }
-        } else if (d.type === "tier1") {
-          d._children.forEach((child) => {
-              showEle.nodes.push({
-                id: child.data.id,
-                name: child.data.NAME,
-                radius: nodeRadiusScale(
-                  child._children ? child._children.length : 0
-                ),
-                color: color(d.id),
-                parameterCount:child._children ? child._children.length : 0,
-                group: child.data.subModule,
-                parent: d.id,
-                stroke: "white",
-                strokeWidth: 0,
-                type: "tier2"
-              });
-          });
-        } else if (d.type === "tier2") {
-          const matchingPack = config.packData.find((f) => f.id === d.id);
-          if (matchingPack) {
-            matchingPack.children.forEach((c) => {
-              showEle.nodes.push({
-                id: c.id,
-                name: c.name,
-                radius: c.r,
-                color: "black",
-                parent: matchingPack.id,
-                group: matchingPack.group,
-                strokeWidth: 0,
-                type: "tier3"
-              });
-            });
-            d.radius = matchingPack.r;
-          }
-        }
-        updatePositions(true);
+        return {
+          id: descendant.data.id,
+          name: descendant.data.NAME,
+          radius: nodeRadiusScale(
+            descendant.children ? descendant.leaves().length : 0
+          ),
+          color: color(descendant.data.subModule),
+          children: descendant.children
+            ? descendant.children.map((m) => m.data.id)
+            : [],
+          parameterCount: descendant.children ? descendant.leaves().length : 0,
+          group: nodeId,
+          parent: descendant.parent.data.id,
+          stroke: "white",
+          subModule: descendant.data.subModule,
+          strokeWidth: 0,
+          type,
+          x,
+          y
+        };
+    }
+    const clickQuiltMiddle = (d) => {
+      if((d._children || d.children) && d.type !== "tier3"){
+        const childIds = d.children ? d.children : d._children.map((m) => m.id);
+        childIds.forEach((child) => {
+          const newType = d.type === "tier1" ? "tier2" : "tier3";
+          showEle.nodes.push(getNewQuiltMiddleNode(child, d.x, d.y, newType));
+          debugger;
+        })
+        showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
+
+      }
+
+      updatePositions(true);
     }
 
     // append chartNodes to nodesGroup and define attributes
@@ -989,11 +900,13 @@ export default async function ForceGraph(
           }
           let tooltipText = `${d.NAME}<br>Click to drill down`;
           if(d.type === "tier2"){
-            const subModuleName = showEle.nodes.find((f) => f.id === d.group).NAME;
+            // get submoduleName from config
+            const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
             tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.name}`;
           }
           if(d.type === "tier3"){
-            const subModuleName = showEle.nodes.find((f) => f.id === d.group).NAME;
+            // get submoduleName from config
+            const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
             tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.parent}<br><strong>Parameter: </strong>${d.name}`;
           }
 
