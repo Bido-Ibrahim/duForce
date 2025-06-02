@@ -1439,7 +1439,7 @@ export default async function ForceGraph(
         showTooltipExtra(event.x, event.y, "click to copy url link to clipboard")
       })
       .on("mouseout", () => {
-        downloadImageButton.style("color","white");
+        urlButton.style("color","white");
         tooltipExtra.style("visibility","hidden");
       })
       .on("click", () => {
