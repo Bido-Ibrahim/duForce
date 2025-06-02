@@ -19,6 +19,7 @@ const resetMenuVisibility = (width) => {
   const parameterOtherPosition = config.currentLayout === "default" ? "2.9rem" : "4.8rem";
   d3.selectAll(".otherButton")
     .style("top", config.graphDataType === "parameter" ? parameterOtherPosition : "1.4rem");
+  d3.select("#getUrlLink").style("display", config.nearestNeighbourOrigin === "" ? "none" : "block");
   d3.selectAll(".viewButton")
     .style("opacity",config.graphDataType === "parameter" && config.currentLayout === "default"? 1 : 0)
     .style("top",`${config.graphDataType === "parameter" ? 3.1 : 1.4}rem`);
@@ -268,7 +269,9 @@ export default async function ForceGraph(
       }, {})
       config.setDefaultNodePositions(defaultNodePositions)
     }
+
     updatePositions(true);
+
   }
 
   // Update search box with searchable items
@@ -278,8 +281,8 @@ export default async function ForceGraph(
   updateButtons(graph);
 
   // nearest neighbour functions
-  const getNeighbours =(nameArray, direction, nnDepth, previousNNNodes) =>  nameArray.reduce((acc, origin) => {
-
+  function getNeighbours (nameArray, direction, nnDepth, previousNNNodes) {
+    return  nameArray.reduce((acc, origin) => {
     const neighbourLinks = showEle.links.filter((f) => (direction === "outbound" ? getSourceId(f) : getTargetId(f)) === origin)
     neighbourLinks.forEach((d) => {
       const source = getSourceId(d);
@@ -292,9 +295,9 @@ export default async function ForceGraph(
       }
     })
      return acc;
-    }, [])
+    }, [])}
 
-  const getNearestNeighbourLinks = () => {
+  function getNearestNeighbourLinks  ()  {
     const depth1OutboundLinks = getNeighbours([config.nearestNeighbourOrigin], "outbound",1,[]);
     const depth1InboundLinks = getNeighbours([config.nearestNeighbourOrigin],"inbound",1,[]);
     const depth1Links = depth1OutboundLinks.concat(depth1InboundLinks);
@@ -328,7 +331,7 @@ export default async function ForceGraph(
     return arr;
   }
 
-  const renderNNLevelLabels = (nnData) => {
+  function renderNNLevelLabels (nnData) {
 
     // render (or unrenders) the level titles
     const nnWidth = 200;
@@ -497,6 +500,7 @@ export default async function ForceGraph(
       config.setSelectedNodeNames(allNNNodes.map((m) => m.name));
     }
 
+    d3.select("#getUrlLink").style("display", config.nearestNeighbourOrigin === "" ? "none" : "block");
     updatePositions(true,nodeClick);
   }
 
@@ -791,7 +795,7 @@ export default async function ForceGraph(
       const currentNodeId = d.id;
       // tone down links, nodes and remove paths
       svg.selectAll(".allLinkPaths").attr("stroke-opacity", 0.05);
-      svg.selectAll(".nodeCircle").attr("opacity",0.2);
+      svg.selectAll(".nodesGroup").attr("opacity",(d) => d.id === currentNodeId ? 1 : 0.2);
 
       svg.selectAll(".allLinkPaths")
         .attr("marker-start","")
@@ -800,9 +804,12 @@ export default async function ForceGraph(
         // after filter, highlight adjoining links and nodes
         .each((d,i,objects) => {
           const opposite = d.source.id === currentNodeId ? d.target.id : d.source.id;
-          svg.selectAll(".nodeCircle")
-            .filter((f) =>  f.id === opposite || f.id === currentNodeId)
-            .attr("opacity",1);
+
+          const nodesGroup = svg.selectAll(".nodesGroup")
+            .filter((f) =>  f.id === opposite);
+
+           nodesGroup.attr("opacity",1);
+           nodesGroup.selectAll(".nodeLabel").style("display", "block")
           d3.select(objects[i])
             .attr("marker-start", (n) => n.direction === "both"  ? "url(#arrowPathStart)" : "")
             .attr("marker-end","url(#arrowPathEnd)")
@@ -811,8 +818,10 @@ export default async function ForceGraph(
     };
 
     const allNodeMouseout = () => {
+      svg.selectAll(".nodesGroup").attr("opacity",1);
+      svg.selectAll(".nodeLabel").style("display", getNodeLabelDisplay);
       // reset nodes and links after a mouseout
-      d3.selectAll(".nodeCircle")
+      svg.selectAll(".nodeCircle")
         .attr("stroke-width", 0)
         .attr("opacity",(d) =>
           config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
@@ -910,11 +919,9 @@ export default async function ForceGraph(
         .on("drag", dragged))
       .on("mouseover",(event,d) => {
         if(config.graphDataType !== "parameter"){
-          // for submodule + segment - only highlight if nodeClicked false
-          if(!d.nodeClicked){
-            d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
-            quiltOrMiddleHighlight(d);
-          }
+          // for submodule + segment -
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+          quiltOrMiddleHighlight(d);
           let tooltipText = `${d.name || d.data.NAME}<br>Click to drill down`;
           if(d.type === "tier2"){
             // get submoduleName from config
@@ -926,9 +933,7 @@ export default async function ForceGraph(
             const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
             tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.parent}<br><strong>Parameter: </strong>${d.name}`;
           }
-
           showTooltipExtra(event.x,event.y,tooltipText, false)
-
         } else {
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           updateTooltip(d, true, event.x);
@@ -960,7 +965,7 @@ export default async function ForceGraph(
             const tooltipNode = getTooltipNode();
             updateTooltip(tooltipNode, false, event.x);
           }
-        } else if (!d.nodeClicked){
+        } else {
             allNodeMouseout();
           }
       })
@@ -989,22 +994,6 @@ export default async function ForceGraph(
             showEle.nodes.push(getNewQuiltMiddleNode(d.subModule, d.x, d.y, "tier1"));
             updatePositions(true);
           }
-
-          // this holds the highlight view if nodeClicked - clicking again resets
-        //  if(d.clicked){
-        //    d.clicked = false;
-        //    allNodeMouseout();
-        //  } else {
-        //    d.clicked = true;
-        //    quiltOrMiddleHighlight(d);
-        //  }
-        //  svg.selectAll(".nodesGroup").each((n) => n.nodeClicked = d.clicked);
-        //  d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
-       //   svg.selectAll(".nodeCircle")
-        //    .filter((f) => f.id !== d.id)
-         //   .attr("stroke-width",0)
-         //   .each((n) => n.clicked = false);
-
         }
       })
 
@@ -1067,12 +1056,17 @@ export default async function ForceGraph(
       performZoomAction(zoomNodes,initial ? 0 : 400,"zoomFit")
     }
 
+
     const tooltipNode = getTooltipNode();
     // cancel loader
     d3.select(".animation-container").style("display", "none");
     if(config.graphDataType === "parameter"){
       // update tooltip if parameter
       updateTooltip(tooltipNode, false);
+    }
+
+    if(expandedAll && config.graphDataType ==="parameter" && config.nearestNeighbourOrigin !== ""){
+      clickNode(config.nearestNeighbourOrigin,"node",graph);
     }
   }
   // simulation functions
@@ -1435,6 +1429,34 @@ export default async function ForceGraph(
         downloadImageButton.style("color","white");
         tooltipExtra.style("visibility","hidden");
       })
+
+    const urlButton = d3.select("#getUrlLink");
+
+    urlButton
+      .style("cursor","pointer")
+      .on("mouseover mousemove", (event) => {
+        d3.select(event.currentTarget).style("color","#A0A0A0");
+        showTooltipExtra(event.x, event.y, "click to copy url link to clipboard")
+      })
+      .on("mouseout", () => {
+        downloadImageButton.style("color","white");
+        tooltipExtra.style("visibility","hidden");
+      })
+      .on("click", () => {
+        const textarea = document.createElement("textarea");
+        const getUrlId = (str) => {
+          const hasCapital  = /[A-Z]/.test(str);
+          return hasCapital ? `~${str}` : str;
+        }
+        textarea.value = `${window.location.href}?NN=${getUrlId(config.nearestNeighbourOrigin)}`;
+        textarea.style.position = "fixed"; // prevents scrolling jump
+        textarea.style.opacity = 0;
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      });
 
     const hideSingleButton = d3.select("#hide-single-button");
 

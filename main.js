@@ -284,6 +284,27 @@ async function getData() {
         return acc;
       },{}));
 
+      if (window.location.search) {
+        String(window.location.search)
+          .replace(/\?/g, '')
+          .split("&")
+          .forEach((param) => {
+            const args = param.split("=");
+            if(args.length === 2){
+              let parameter = args[1];
+              if(parameter.includes("~")){
+                parameter = parameter.replace(/~/g,'').toUpperCase();
+              }
+              if(args[0] === "NN" && config.parameterData.nodes.some((s) => s.id === parameter)){
+                config.setNearestNeighbourOrigin(parameter);
+                config.graphDataType = "parameter";
+              }
+            }
+          });
+        const newUrl = window.location.origin + window.location.pathname;
+        history.replaceState(null, '', newUrl);
+      }
+
       // copy hierarchy data
       const nodesCopy = treeData.copy();
       // set more config variables
@@ -298,9 +319,8 @@ async function getData() {
   }
 }
 
-
 // cheat because main.js was calling twice and didn't want to waste your time debugging at this stage
 if(!config.initialLoadComplete){
-  console.log('loading')
+
   getData();
 }
