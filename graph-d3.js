@@ -9,7 +9,7 @@ import { dijkstra } from "graphology-shortest-path";
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
-  d3.select("#infoMessage").style("visibility","hidden");
+  d3.select("#infoMessage").style("visibility",config.graphDataType !== "parameter" || config.currentLayout === "default" ? "hidden" : "visible");
   d3.select("#tooltipCount").text("");
   d3.select("#parameter-menu").style("display", config.graphDataType === "parameter" ? "block" : "none");
   d3.select("#tabbed-component")
@@ -979,6 +979,7 @@ export default async function ForceGraph(
         // do nothing on click if NN or SP layout
         // add segment when ready
         if(config.graphDataType !== "parameter"){
+          d3.select(".tooltipExtra").style("visibility","hidden");
           if (isNormalClick(event) && d.children && d.type !== "tier3") {
             clickQuiltMiddle(d);
           } else if (d.type === "tier3") {
@@ -1120,6 +1121,7 @@ export default async function ForceGraph(
       config.setTooltipRadio("none");
       tooltip.style("padding","0.4rem");
       let content = [];
+      if(!d || !d.color || !d.name) return;
       content.push(`<div style="background-color: ${d.color} "><p style='text-align: center' >${d.NAME}</p></div>`); // tooltip title
       const datum = nodes.find(node => node.NAME === d.NAME)
       TOOLTIP_KEYS.forEach(key => {
@@ -1180,11 +1182,11 @@ export default async function ForceGraph(
     let tooltipVisibility = "visible";
     if(config.graphDataType !== "parameter") tooltipVisibility = "hidden";
     if(listToShow.length === 0) tooltipVisibility = "hidden";
-    if(config.currentLayout === "nearestNeighbour" && config.nearestNeighbourOrigin === "") tooltipVisibility = "hidden";
+    if(config.currentLayout === "nearestNeighbour" && !mouseover) tooltipVisibility = "hidden";
     if(config.currentLayout === "shortestPath" && (config.shortestPathStart === "" || config.shortestPathEnd === "")) tooltipVisibility = "hidden";
-     if(expandedAll) tooltipVisibility = "hidden";
+     if(expandedAll && !mouseover) tooltipVisibility = "hidden";
     d3.select("#tooltipCount")
-      .text(tooltipVisibility === "visible" && !mouseover ? `${listToShow.length} node${listToShow.length > 1 ? "s" : ""} selected` : "")
+      .text(tooltipVisibility === "visible" ? `${listToShow.length} node${listToShow.length > 1 ? "s" : ""} selected` : "")
 
     tooltip
       .html(`${contentStr}`)
@@ -1300,15 +1302,13 @@ export default async function ForceGraph(
       updatePositions(true);
     } else {
       if(config.currentLayout === "nearestNeighbour"){
+        d3.select("#infoMessage").text(MESSAGES.NN).style("visibility","visible");
         config.shortestPathStart = "";
         config.shortestPathEnd = "";
-        if(config.selectedNodeNames.length > 0 && !expandedAll) {
-          config.nearestNeighbourOrigin = config.selectedNodeNames[0];
-        }
         if(config.nearestNeighbourOrigin !== ""){
+          d3.select("#infoMessage").text("")
           positionNearestNeighbours(false);
         } else {
-          d3.select("#infoMessage").text(MESSAGES.NN).style("visibility","visible");
           updatePositions(true);
         }
         d3.select('#search-container-sp-end').style("display","none");
@@ -1319,18 +1319,16 @@ export default async function ForceGraph(
           .property("value",config.nearestNeighbourOrigin);
       }
       if(config.currentLayout === "shortestPath"){
+        if(config.nearestNeighbourOrigin !== ""){
+          config.shortestPathStart = config.nearestNeighbourOrigin;
+        }
         config.nearestNeighbourOrigin = "";
-        if(config.selectedNodeNames.length > 0 && !expandedAll){
-          config.shortestPathStart = config.selectedNodeNames[0];
-          d3.select("#infoMessage").text(MESSAGES.SP).style("visibility","visible");
-          updatePositions(true);
+        d3.select("#infoMessage").text(MESSAGES.SP).style("visibility","visible");
+        if(config.shortestPathStart !== "" && config.shortestPathEnd !== ""){
+          d3.select("#infoMessage").text("");
+          positionShortestPath(graph);
         } else {
-          if(config.shortestPathStart !== "" && config.shortestPathEnd !== ""){
-            positionShortestPath(graph);
-          } else {
-            d3.select("#infoMessage").text(MESSAGES.SP).style("visibility","visible");
-            updatePositions(true);
-          }
+          updatePositions(true);
         }
         d3.select('#search-container-sp-end').style("display","block");
         d3.select("#search-input-sp-end").property("value",config.shortestPathEnd);
@@ -1350,6 +1348,7 @@ export default async function ForceGraph(
     d3.select("#resetButton")
       .text(config.graphDataType !== "parameter" || config.currentLayout !== "default" || expandedAll ? "" : "Reset")
       .on("click",(event) => {
+        d3.select("#getUrlLink").style("display", "none");
         d3.select("#tooltipCount").text("");
         d3.selectAll(".nodeCircle").attr("opacity",1);
         expandedAll = true;
