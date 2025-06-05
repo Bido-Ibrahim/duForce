@@ -157,6 +157,7 @@ export const drawTree = () => {
     .on("click",(event, d) => {
       config.nearestNeighbourOrigin = "";
       config.tooltipRadio = "none";
+      d3.select("#search-input").property("value","");
       if(d.data.type === "tier3") {
         if (config.selectedNodeNames.includes(d.data.NAME)) {
           // tier 3 (chart nodes) - currently selected
