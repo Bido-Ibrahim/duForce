@@ -295,7 +295,7 @@ input[type="range"] {
 #resetButton{
     position: absolute;
     top: 3.7rem;
-    left: 4.2rem;
+    left: 3.2rem;
     cursor: pointer;
     font-size: 0.7rem;
 }
@@ -463,11 +463,7 @@ input[type="range"] {
     left: 1.45rem;
 }
 
-#getUrlLink {
-    left: 2.65rem;
-    display: block;
-}
-#helpInfo, #downloadImage,#getUrlLink {
+#helpInfo, #downloadImage {
     position: absolute;
     top: 1.4rem;
     padding:  0.6rem 0px 0px 0.3rem;

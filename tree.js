@@ -155,8 +155,10 @@ export const drawTree = () => {
     .attr("height", rowHeight)
     .attr("fill","transparent")
     .on("click",(event, d) => {
-      config.nearestNeighbourOrigin = "";
-      config.tooltipRadio = "none";
+      config.setNearestNeighbourOrigin("");
+      config.setTooltipRadio("none");
+      //reset url to blank
+      history.replaceState(null, '', window.location.href.split("?")[0]);
       d3.select("#search-input").property("value","");
       if(d.data.type === "tier3") {
         if (config.selectedNodeNames.includes(d.data.NAME)) {
@@ -303,10 +305,11 @@ export default function VariableTree(data) {
       d3.select("#nnDegreeDiv").style("display","none");
       d3.select("#search-input").property("value","");
       d3.select("#infoMessage").text("");
-      config.graphDataType = event.currentTarget.value;
-      config.nearestNeighbourOrigin = "";
-      config.tooltipRadio = "none";
-      config.currentLayout = "default";
+      history.replaceState(null, '', window.location.href.split("?")[0]);
+      config.setGraphDataType(event.currentTarget.value);
+      config.setNearestNeighbourOrigin("");
+      config.setTooltipRadio("none");
+      config.setCurrentLayout("default");
       const getSelectedNames = () => {
         if(config.graphDataType === "parameter") return selectedNodeNamesCopy;
         if(config.graphDataType === "submodule") return config.hierarchyData.subModuleNames;
