@@ -284,6 +284,13 @@ async function getData() {
         return acc;
       },{}));
 
+      const navEntry = performance.getEntriesByType("navigation")[0];
+
+      if(navEntry.type === "reload"){
+        console.log('resetting url')
+        history.replaceState(null, '', window.location.href.split("?")[0]);
+      }
+
       if (window.location.search) {
         String(window.location.search)
           .replace(/\?/g, '')
@@ -291,13 +298,31 @@ async function getData() {
           .forEach((param) => {
             const args = param.split("=");
             if(args.length === 2){
-              let parameter = args[1];
-              if(parameter.includes("~")){
-                parameter = parameter.replace(/~/g,'').toUpperCase();
+              let parameters = args[1];
+              if(parameters.includes("~")){
+                parameters = parameters.replace(/~/g,'').toUpperCase();
               }
-              if(args[0] === "NN" && config.parameterData.nodes.some((s) => s.id === parameter)){
-                config.setNearestNeighbourOrigin(parameter);
-                config.graphDataType = "parameter";
+              const {0: parameter1, 1: parameter2} = parameters.split(":");
+              if(args[0] === "NN" && config.parameterData.nodes.some((s) => s.id === parameter1)){
+                config.setNearestNeighbourOrigin(parameter1);
+                config.setNearestNeighbourDegree(+parameter2);
+                config.setGraphDataType("parameter");
+                d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
+                  .property("checked", true)
+              } else if (args[0] === "SP" && config.parameterData.nodes.some((s) => s.id === parameter1)
+                && config.parameterData.nodes.some((s) => s.id === parameter2)){
+                config.setShortestPathStart(parameter1);
+                config.setShortestPathEnd(parameter2);
+                config.setGraphDataType("parameter");
+                d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
+                  .property("checked", true);
+              } else if (args[0] === "QV" || args[0] === "MV"){
+                if(args[0] === "MV"){
+                  config.setGraphDataType("segment");
+                }
+                config.setQuiltMiddleUrlExtras(args[1].split("_"));
+              } else {
+                config.setQuiltMiddleUrlExtras([]);
               }
             }
           });

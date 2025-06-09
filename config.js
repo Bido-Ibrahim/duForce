@@ -27,7 +27,15 @@ export const config = {
   notDefaultSelectedNodeNames: [],
   notDefaultSelectedLinks: [],
   tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
+  quiltMiddleUrlExtras: [],
 
+  setQuiltMiddleUrlExtras(newArray) {
+    if (typeof newArray === "object") {
+      this.quiltMiddleUrlExtras = newArray;
+    } else {
+      console.error("Expected an string for setQuiltMiddleUrlExtras.");
+    }
+  },
   setTooltipRadio(newString) {
     if (typeof newString === "string") {
       this.tooltipRadio = newString;
@@ -158,7 +166,6 @@ export const config = {
     }
   },
 
-
   // Method to update the layout type
   setCurrentLayout(newLayout) {
     if (typeof newLayout === 'string') {
@@ -167,8 +174,14 @@ export const config = {
       console.error("Expected a string for currentLayout.");
     }
   },
-
-
+  // Method to update the layout type
+  setGraphDataType(newType) {
+    if (typeof newType === 'string') {
+      this.graphDataType = newType;
+    } else {
+      console.error("Expected a string for setGraphDataType.");
+    }
+  },
   // Method to set the showSingle explicitly
   setShowSingleNodes(value) {
     if (typeof value === 'boolean') {
