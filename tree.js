@@ -310,6 +310,8 @@ export default function VariableTree(data) {
       config.setNearestNeighbourOrigin("");
       config.setTooltipRadio("none");
       config.setCurrentLayout("default");
+      config.setExpandedQuiltMiddleNodes([]);
+      config.setQuiltMiddleUrlExtras([]);
       const getSelectedNames = () => {
         if(config.graphDataType === "parameter") return selectedNodeNamesCopy;
         if(config.graphDataType === "submodule") return config.hierarchyData.subModuleNames;

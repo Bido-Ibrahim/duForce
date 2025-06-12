@@ -12,6 +12,7 @@ export const config = {
   showSingleNodes: true,
   // graph data set on initial load
   allNodeNames: [],
+  expandedQuiltMiddleNodes: [],
   hierarchyData: {},
   subModules: [],
   parameterData: {},
@@ -28,12 +29,28 @@ export const config = {
   notDefaultSelectedLinks: [],
   tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
   quiltMiddleUrlExtras: [],
+  nnUrlView: false,
+
+  setNNUrlView(newBoolean) {
+    if (typeof newBoolean === "boolean") {
+      this.nnUrlView = newBoolean;
+    } else {
+      console.error("Expected a boolean for nnUrlView.");
+    }
+  },
 
   setQuiltMiddleUrlExtras(newArray) {
     if (typeof newArray === "object") {
       this.quiltMiddleUrlExtras = newArray;
     } else {
       console.error("Expected an string for setQuiltMiddleUrlExtras.");
+    }
+  },
+  setExpandedQuiltMiddleNodes(newArray) {
+    if (typeof newArray === "object") {
+      this.expandedQuiltMiddleNodes = newArray;
+    } else {
+      console.error("Expected an object for expandedQuiltMiddleNodes.");
     }
   },
   setTooltipRadio(newString) {

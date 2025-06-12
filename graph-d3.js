@@ -6,6 +6,7 @@ import { drawTree, getColorScale, remToPx } from "./tree";
 import { MESSAGES, NODE_RADIUS_RANGE, TICK_TIME, TOOLTIP_KEYS } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
+
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
@@ -110,7 +111,7 @@ export default async function ForceGraph(
 
   const getQuiltMiddleDepthMultiple = (type) => {
     if(config.graphDataType === "submodule") return type === "tier1" ? 8 : type === "tier2" ? 6 : 1.4
-    if(config.graphDataType === "segment") return type === "tier1" ? 4 : type === "tier2" ? 3 : 1.4
+    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 4 : 1.2
   };
   // Initialize simulation
   const simulation = d3
@@ -182,13 +183,32 @@ export default async function ForceGraph(
     return currentZoomLevel > 2 ? "block":"none";
   }
 
+
+  function getNodeLabelDy  (d)  {
+    if(config.graphDataType !== "parameter") return d.radius + remToPx(0.6/currentZoomLevel);
+    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return d.radius + remToPx(0.4);
+    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return d.radius + remToPx(0.6);
+
+    return d.radius + remToPx(0.2);
+  }
+  function getNodeLabelSize (d)  {
+    if(config.graphDataType !== "parameter") return `${0.6/currentZoomLevel}em`;
+    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return "0.4rem";
+    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return "0.6rem";
+    return "0.2rem"
+  }
+
   const zoom = d3
     .zoom()
     .on("zoom", (event) => {
       const { x, y, k } = event.transform;
       currentZoomLevel = k;
       svg.attr("transform", `translate(${x},${y}) scale(${k})`);
-      svg.selectAll(".nodeLabel").style("display",getNodeLabelDisplay);
+      svg.selectAll(".nodeLabel")
+        .attr("dy",getNodeLabelDy)
+        .attr("font-size",getNodeLabelSize)
+        .style("display",getNodeLabelDisplay);
+
 
     });
 
@@ -512,7 +532,7 @@ export default async function ForceGraph(
       // if from default view, set's selectedNodeNames
       config.setSelectedNodeNames(allNNNodes.map((m) => m.name));
     }
-    const nnUrl = `${window.location.href.split("?")[0]}?NN=${getUrlId(config.nearestNeighbourOrigin)}:${config.nearestNeighbourDegree}`;
+    const nnUrl = `${window.location.href.split("?")[0]}?${config.currentLayout === "default" ? "NND" :"NNV"}=${getUrlId(config.nearestNeighbourOrigin)}:${config.nearestNeighbourDegree}`;
     history.replaceState(null, '', nnUrl);
     updatePositions(true,nodeClick);
   }
@@ -681,74 +701,79 @@ export default async function ForceGraph(
     }
 
     if(config.graphDataType !== "parameter"){
-      const subModulesToCollapse = new Set();
-      config.quiltMiddleUrlExtras.forEach((d) => {
-        const parameter = d.replace(/~/g,'');
-        const parameterSubmodule = config.parameterData.nodes.find((f) => f.id === d)?.subModule || "";
-        const matchingSubModules = showEle.nodes.filter((f) => f.subModule = parameterSubmodule);
-        const xExtent = d3.extent(matchingSubModules, (d) => d.x);
-        const yExtent = d3.extent(matchingSubModules, (d) => d.y);
-        const matchingParameter = config.parameterData.nodes.find((f) => f.id === parameter);
-        const groupX = xExtent[0] + (xExtent[1]-xExtent[0])/2;
-        const groupY = yExtent[0] + (yExtent[1]-yExtent[0])/2;
-        if(matchingParameter){
-          if(!showEle.nodes.some((s) => s.id === parameter)){
-            subModulesToCollapse.add(matchingParameter.subModule);
-            const parameterNode = getNewQuiltMiddleNode(parameter,groupX,groupY , "tier3");
-            parameterNode.group = matchingParameter.segment;
-            showEle.nodes.push(parameterNode);
-          }
 
+      const reRunSimulation = () => {
+        chartNodes = showEle.nodes;
+        chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
+          if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
+            if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
+              acc.push({
+                source: link.source,
+                target: link.target,
+                direction: link.direction,
+                index
+              })
+          }
+          return acc;
+        },[])
+
+        simulation.nodes([]).force("link").links([])
+        simulation.nodes(showEle.nodes).force("link").links(chartLinks);
+        simulation.alphaTarget(0.1).restart();
+        // stop at calculated tick time (from previous dev)
+        simulation.tick(TICK_TIME);
+        // fixing nodes until a data change
+        let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
+        config.expandedQuiltMiddleNodes.forEach((nodeId) => {
+          urlString += `${getUrlId(nodeId)}_`
+        })
+        showEle.nodes.map((m) => {
+          m.fx = m.x;
+          m.fy = m.y;
+        })
+        if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
+          history.replaceState(null, '', urlString.substring(0,urlString.length-1));
         } else {
-          // tier 2 nodes
-          const parentSubModule = showEle.nodes.find((f) => f.children.some((s) => s.id === parameter));
-          if(parentSubModule){
-            subModulesToCollapse.add(parentSubModule.id);
-          }
-          if(!showEle.nodes.some((s) => s.id === parameter)){
-            showEle.nodes.push(getNewQuiltMiddleNode(parameter,parentSubModule ? parentSubModule.x : groupX ,parentSubModule ? parentSubModule.y : groupY , "tier2"));
-
-          }
-         }
-      })
-      config.setQuiltMiddleUrlExtras([]);
-      showEle.nodes = showEle.nodes.filter((f) => !Array.from(subModulesToCollapse).includes(f.id));
-      chartNodes = showEle.nodes;
-      chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
-        if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
-          if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
-          acc.push({
-            source: link.source,
-            target: link.target,
-            direction: link.direction,
-            index
-          })
+          history.replaceState(null, '', window.location.href.split("?")[0]);
         }
-        return acc;
-      },[])
-
-      simulation.nodes([]).force("link").links([])
-      simulation.nodes(showEle.nodes).force("link").links(chartLinks);
-      simulation.alphaTarget(0.1).restart();
-      // stop at calculated tick time (from previous dev)
-      simulation.tick(TICK_TIME);
-      // fixing nodes until a data change
-      let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
-      showEle.nodes.map((m) => {
-        if(m.type !== "tier1"){
-          urlString += `${getUrlId(m.id)}_`
-        }
-        m.fx = m.x;
-        m.fy = m.y;
-      })
-      if(!(urlString === "QV=" || urlString === "MV=")){
-        history.replaceState(null, '', urlString.substring(0,urlString.length-1));
-      } else {
-        history.replaceState(null, '', window.location.href.split("?")[0]);
+        // stop simulation
+        simulation.stop();
       }
-      // stop simulation
-      simulation.stop();
-
+      reRunSimulation();
+      const {segmentNames, subModuleNames, subModuleNodes} = config.hierarchyData;
+      // find submodules
+      const expandedSubmodules = config.quiltMiddleUrlExtras.filter((f) => subModuleNames.includes(f));
+      expandedSubmodules.forEach((submodule) => {
+        // fetch node from data
+        const submoduleNode = subModuleNodes.find((f) => f.id === submodule);
+        if(submoduleNode){
+          // simulate a click and re-run simulation
+          clickQuiltMiddle(submoduleNode);
+          reRunSimulation();
+        }
+      })
+      // find segments
+      const expandedSegments = config.quiltMiddleUrlExtras.filter((f) => segmentNames.includes(f));
+      expandedSegments.forEach((segment) => {
+        // fetch submodule from current simulation (for position)
+        const segmentNode = showEle.nodes.find((f) => f.id === segment);
+        if(segmentNode){
+          // simulate a click and re-run simulation
+          clickQuiltMiddle(segmentNode);
+          reRunSimulation();
+        }
+      })
+      let parameterClickId = config.quiltMiddleUrlExtras.find((f) => !subModuleNames.includes(f) && !segmentNames.includes(f));
+      if(parameterClickId){
+        parameterClickId = parameterClickId.replace(/~/g,'');
+        const parameterNode = showEle.nodes.find((f) => f.id === parameterClickId)
+        if(parameterNode){
+          parameterNode.clicked = true;
+          let urlString = `${window.location.href}_${getUrlId(parameterClickId)}`;
+          history.replaceState(null, '', urlString);
+        }
+      }
+      config.setQuiltMiddleUrlExtras([]);
     }
 
     // functions for defining link attributes
@@ -853,9 +878,10 @@ export default async function ForceGraph(
         .attr("d", getLinkPath);
     }
 
-    const quiltOrMiddleHighlight = (d) => {
+    function quiltOrMiddleHighlight  (d)  {
       // highlight adjoining links and nodes when in config.graphDataType === "submodule" (Quilt) or "segment" (middle)
       const currentNodeId = d.id;
+
       // tone down links, nodes and remove paths
       svg.selectAll(".allLinkPaths").attr("stroke-opacity", 0.05);
       svg.selectAll(".nodesGroup").attr("opacity",(d) => d.id === currentNodeId ? 1 : 0.2);
@@ -906,21 +932,6 @@ export default async function ForceGraph(
       return defaultValue;
     }
 
-    const getNodeLabelDy = (d) => {
-      if(config.graphDataType === "submodule") return d.radius + remToPx(0.6);
-      if(config.graphDataType === "segment") return d.radius + remToPx(0.5);
-      if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return d.radius + remToPx(0.4);
-      if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return d.radius + remToPx(0.6);
-
-      return d.radius + remToPx(0.2);
-    }
-    const getNodeLabelSize = (d) => {
-      if(config.graphDataType === "submodule") return "0.6em";
-      if(config.graphDataType === "segment") return "0.5em";
-      if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return "0.4rem";
-      if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return "0.6rem";
-      return "0.2rem"
-    }
 
     function getNewQuiltMiddleNode (nodeId, x,y, type)  {
         const descendant = config.expandedTreeData.descendants().find((f) => f.data.id === nodeId);
@@ -947,13 +958,14 @@ export default async function ForceGraph(
           y
         };
     }
-    const clickQuiltMiddle = (d) => {
+    function clickQuiltMiddle (d) {
       if((d.children) && d.type !== "tier3"){
         const childIds = d.children.length === 0 ? [] : typeof d.children[0] !== "object" ? d.children : d.children.map((m) => m.data.id);
         childIds.forEach((child) => {
           const newType = d.type === "tier1" ? "tier2" : "tier3";
           showEle.nodes.push(getNewQuiltMiddleNode(child, d.x, d.y, newType));
         })
+        config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.concat(d.id));
         showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
       }
       showEle.nodes.map((m) => {
@@ -964,7 +976,6 @@ export default async function ForceGraph(
         }
 
       })
-      updatePositions(true);
     }
 
     const isNormalClick = (event) =>
@@ -987,22 +998,22 @@ export default async function ForceGraph(
       .call(d3.drag()
         .on("drag", dragged))
       .on("mouseover",(event,d) => {
+        tooltip.style("visibility", "hidden");
         if(config.graphDataType !== "parameter"){
           // for submodule + segment -
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
-          quiltOrMiddleHighlight(d);
-          let tooltipText = `${d.name || d.data.NAME}<br>Click to drill down`;
-          if(d.type === "tier2"){
-            // get submoduleName from config
-            const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
-            tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.name}`;
+          if(!showEle.nodes.find((f) => f.clicked)){
+            quiltOrMiddleHighlight(d);
           }
-          if(d.type === "tier3"){
-            // get submoduleName from config
-            const subModuleName = config.expandedTreeData.descendants().find((f) => f.data.id === d.subModule).data.NAME;
-            tooltipText = `<strong>Submodule: </strong>${subModuleName}<br><strong>Segment: </strong>${d.parent}<br><strong>Parameter: </strong>${d.name}`;
+          let tooltipNode = config.parameterData.nodes.find((f) => f.id === d.id);
+          if(!tooltipNode){
+            tooltipNode = {NAME: d.data?.NAME || d.name, COLOR: d.color};
+            if(d.type === "tier2"){
+              tooltipNode["SUBMODULE_NAME"] = d.subModule;
+            }
           }
-          showTooltipExtra(event.x,event.y,tooltipText, false)
+
+          updateTooltip(tooltipNode,true);
         } else {
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           updateTooltip(d, true, event.x);
@@ -1025,7 +1036,7 @@ export default async function ForceGraph(
         }
       })
       .on("mouseout", (event,d) => {
-        d3.select(".tooltipExtra").style("visibility","hidden")
+        d3.select(".tooltipExtra").style("visibility","hidden");
           if(config.graphDataType === "parameter"){
             allNodeMouseout();
           if(expandedAll && config.currentLayout === "default"){
@@ -1035,14 +1046,17 @@ export default async function ForceGraph(
             updateTooltip(tooltipNode, false, event.x);
           }
         } else {
-            allNodeMouseout();
-          }
+            tooltip.style("visibility", "hidden");
+            if(!showEle.nodes.find((f) => f.clicked)) {
+              allNodeMouseout();
+            }
+       }
       })
       .on("click", (event, d) => {
+        tooltip.style("visibility", "hidden");
         if (event.defaultPrevented) return; // dragged
         if(config.currentLayout === "default" && config.graphDataType === "parameter"){
           d3.select(event.currentTarget).raise();
-          console.log('clicking node');
           config.setNearestNeighbourDegree(1);
           clickNode(d.NAME, "node", graph)
         }
@@ -1051,19 +1065,36 @@ export default async function ForceGraph(
         if(config.graphDataType !== "parameter"){
           d3.select(".tooltipExtra").style("visibility","hidden");
           allNodeMouseout();
-          if (isNormalClick(event) && d.children && d.type !== "tier3") {
-            clickQuiltMiddle(d);
+          if (isNormalClick(event)) {
+            if(d.children && d.type !== "tier3"){
+              clickQuiltMiddle(d);
+              updatePositions(true);
+            } else {
+              if(d.clicked){
+                d.clicked = false;
+                config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !==d.id))
+              } else {
+                quiltOrMiddleHighlight(d);
+                d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
+                d.clicked = true;
+                config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.concat(d.id))
+                let urlString = `${window.location.href}_${getUrlId(d.id)}`;
+                history.replaceState(null, '', urlString);
+              }
+            }
           } else if (d.type === "tier3") {
             //delete all depth 2 with my parent
             showEle.nodes = showEle.nodes.filter((f) => (f.parent?.id || f.parent) !== d.parent);
             // add parent if depth 1 = delete all
             showEle.nodes.push(getNewQuiltMiddleNode(d.parent, d.x, d.y, "tier2"));
+            config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.parent));
             updatePositions(true);
           } else if (d.type === "tier2") {
             // delete all with matching subModule
             showEle.nodes = showEle.nodes.filter((f) => f.subModule !== d.subModule);
             // add submodule parent
             showEle.nodes.push(getNewQuiltMiddleNode(d.subModule, d.x, d.y, "tier1"));
+            config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.subModule));
             updatePositions(true);
           }
         }
@@ -1114,8 +1145,8 @@ export default async function ForceGraph(
       .attr("pointer-events","none")
       .style("display", getNodeLabelDisplay)
       .attr("text-anchor", "middle")
-      .attr("dy",getNodeLabelDy)
       .attr("fill", "white")
+      .attr("dy",getNodeLabelDy)
       .attr("font-size",getNodeLabelSize)
       .text((d) => d.NAME || d.data?.NAME || d.name);
 
@@ -1141,18 +1172,27 @@ export default async function ForceGraph(
     }
 
     // NN URL string, degree > 1
-    if(config.nearestNeighbourOrigin !== "" && config.nearestNeighbourDegree > 1 && config.currentLayout === "default"){
+    if(config.nearestNeighbourOrigin !== "" && config.nnUrlView){
       setTimeout(() => {
         d3.select("#nearestNeighbour")
           .dispatch("click");
         d3.select('#nnDegree').property('value', config.nearestNeighbourDegree);
-
+        config.setNNUrlView(false);
       },0)
     }
     // SP URL STRING
     if(config.shortestPathStart !== "" && config.shortestPathEnd !== "" && config.currentLayout === "default"){
       setTimeout(() => {
         d3.select("#shortestPath").dispatch("click");
+      },0)
+    }
+
+    if(showEle.nodes.some((s) => s.clicked)){
+      // for url retrieval, checking if clicked and changing appearance after all nodes have rendered
+      const clickedNode = showEle.nodes.find((s) => s.clicked);
+      quiltOrMiddleHighlight(clickedNode);
+      setTimeout(() => {
+        svg.selectAll(".nodeLabel").style("display", (l) => l.id === clickedNode.id ? "block" : getNodeLabelDisplay(l))
       },0)
     }
   }
@@ -1162,7 +1202,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 4 : 2);
+      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 6 : 2);
       x += d.x * k
       y += d.y * k;
       z += k;
@@ -1206,8 +1246,9 @@ export default async function ForceGraph(
       tooltip.style("padding","0.4rem");
       let content = [];
       if(!d || !d.COLOR || !d.NAME) return;
-      content.push(`<div style="background-color: ${d.color} "><p style='text-align: center' >${d.NAME}</p></div>`); // tooltip title
-      const datum = nodes.find(node => node.NAME === d.NAME)
+      content.push(`<div style="background-color: ${d.color || d.COLOR} "><p style='text-align: center' >${d.NAME}</p></div>`); // tooltip title
+      const datum = nodes.find(node => node.NAME === d.NAME) || d;
+
       TOOLTIP_KEYS.forEach(key => {
         if(datum[key] && datum[key] !== ""){
           content.push(`<div><b>${key}: </b><span>${datum[key]}</span></div>`);
@@ -1250,8 +1291,6 @@ export default async function ForceGraph(
             const shortestPathCell = config.nearestNeighbourOrigin === "" ? "" : `<td class='shortestPathLink' id='${matchingNode.NAME}' style='width:5%; cursor:pointer;'><i class='fas fa-wave-square'></i></td>`
             nodeRows.push({row: `<tr>${config.graphDataType === "parameter" ? `<td style='background-color:${matchingNode.color}; color: white; width:30%;'>${matchingNode.SEGMENT_NAME}</td>`: ""}<td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${nodeName}${directionUnicode}</td><td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${matchingNode["DISPLAY NAME"] || ""}</td>${shortestPathCell}</tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
             nodeTableMapper[`nodeTableRow${i}`] = matchingNode["Parameter Explanation"];
-          } else {
-            console.log(`issue with ${d}`)
           }
         })
         nodeRows = nodeRows.sort((a,b) => d3.ascending(a.subModule, b.subModule) || d3.ascending(a.name, b.name));

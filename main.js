@@ -284,6 +284,9 @@ async function getData() {
         return acc;
       },{}));
 
+      config.setExpandedQuiltMiddleNodes([]);
+      config.setQuiltMiddleUrlExtras([]);
+
       const navEntry = performance.getEntriesByType("navigation")[0];
 
       if(navEntry.type === "reload"){
@@ -303,9 +306,13 @@ async function getData() {
                 parameters = parameters.replace(/~/g,'').toUpperCase();
               }
               const {0: parameter1, 1: parameter2} = parameters.split(":");
-              if(args[0] === "NN" && config.parameterData.nodes.some((s) => s.id === parameter1)){
+              if(args[0].includes("NN") && config.parameterData.nodes.some((s) => s.id === parameter1)){
                 config.setNearestNeighbourOrigin(parameter1);
                 config.setNearestNeighbourDegree(+parameter2);
+                config.setCurrentLayout(args[0] === "NND" ? "default" : "nearestNeighbour");
+                if(args[0] === "NNV"){
+                  config.setNNUrlView(true);
+                }
                 config.setGraphDataType("parameter");
                 d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
                   .property("checked", true)
@@ -318,6 +325,8 @@ async function getData() {
                   .property("checked", true);
               } else if (args[0] === "QV" || args[0] === "MV"){
                 if(args[0] === "MV"){
+                  d3.selectAll('input[name="chartDataRadio"][value="segment"]')
+                    .property("checked", true);
                   config.setGraphDataType("segment");
                 }
                 config.setQuiltMiddleUrlExtras(args[1].split("_"));
