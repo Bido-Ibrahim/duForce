@@ -10,6 +10,8 @@ import { dijkstra } from "graphology-shortest-path";
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
+  d3.select("#resetButton").style("top", config.graphDataType === "parameter" ? "3.7rem" : "2.1rem")
+
   d3.select("#infoMessage").style("visibility",config.graphDataType !== "parameter" || config.currentLayout === "default" ? "hidden" : "visible");
   d3.select("#tooltipCount").text("");
   d3.select("#parameter-menu").style("display", config.graphDataType === "parameter" ? "block" : "none");
@@ -77,6 +79,7 @@ export default async function ForceGraph(
 
   // add additional node variables
   showEle.nodes = showEle.nodes.reduce((acc, node) => {
+
     node.radiusVar = config.graphDataType === "parameter" ? nodeLinkCounts[node.id] : node.data.parameterCount;
     node.color = color(config.graphDataType === "parameter" ? node.subModule : node.data.subModule);
     node.radius = nodeRadiusScale(node.radiusVar);
@@ -794,6 +797,8 @@ export default async function ForceGraph(
       }
       // after all that, reset setQuildMiddleUrlExtras
       config.setQuiltMiddleUrlExtras([]);
+      d3.select("#resetButton").text(config.expandedQuiltMiddleNodes.length > 0 ? "Reset" : "")
+
     }
 
     // functions for defining link attributes
@@ -1033,6 +1038,7 @@ export default async function ForceGraph(
             }
           }
           updateTooltip(tooltipNode,true);
+          showTooltipExtra(event.x + 10, event.y,"CLICK to expand<br>SHIFT + CLICK to collapse",false)
         } else {
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           updateTooltip(d, true, event.x);
@@ -1512,26 +1518,31 @@ export default async function ForceGraph(
     d3.select("#resetButton")
       .text(config.graphDataType !== "parameter" || config.currentLayout !== "default" || expandedAll ? "" : "Reset")
       .on("click",(event) => {
-        d3.select("#tooltipCount").text("");
-        d3.selectAll(".nodeCircle").attr("opacity",1);
-        expandedAll = true;
-        performZoomAction(showEle.nodes,400,"zoomFit");
-        d3.select(event.currentTarget).text("");
-        config.setSelectedNodeNames(config.allNodeNames);
-        config.setNotDefaultSelectedLinks([]);
-        config.setNotDefaultSelectedNodeNames([]);
-        config.setNearestNeighbourOrigin("");
-        config.setShortestPathStart("");
-        config.setShortestPathEnd("");
-        config.setTooltipRadio("none");
-        d3.select(".tooltip").style("visibility","hidden");
-        drawTree();
+        if(config.graphDataType === "parameter"){
+          d3.select("#tooltipCount").text("");
+          d3.selectAll(".nodeCircle").attr("opacity",1);
+          expandedAll = true;
+          performZoomAction(showEle.nodes,400,"zoomFit");
+          d3.select(event.currentTarget).text("");
+          config.setSelectedNodeNames(config.allNodeNames);
+          config.setNotDefaultSelectedLinks([]);
+          config.setNotDefaultSelectedNodeNames([]);
+          config.setNearestNeighbourOrigin("");
+          config.setShortestPathStart("");
+          config.setShortestPathEnd("");
+          config.setTooltipRadio("none");
+          d3.select(".tooltip").style("visibility","hidden");
+          drawTree();
+        } else {
+          location.reload();
+        }
+
 
       });
     const resetButtons = d3.selectAll(".resetButton");
 
     resetButtons
-      .style("cursor","pointer")
+       .style("cursor","pointer")
       .on("mouseover mousemove", (event) => {
         d3.select(event.currentTarget).style("color","#A0A0A0");
         showTooltipExtra(event.x, event.y, "reset search")
