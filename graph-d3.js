@@ -84,7 +84,6 @@ export default async function ForceGraph(
     return acc;
   }, [])
 
-
   // select or define non data-appended elements
   let baseSvg = d3.select(containerSelector).select("svg");
   let tooltip = d3.select(containerSelector).select(".tooltip");
@@ -111,7 +110,7 @@ export default async function ForceGraph(
 
   const getQuiltMiddleDepthMultiple = (type) => {
     if(config.graphDataType === "submodule") return type === "tier1" ? 8 : type === "tier2" ? 6 : 1.4
-    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 4 : 1.2
+    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 5 : 1.2
   };
   // Initialize simulation
   const simulation = d3
@@ -129,7 +128,7 @@ export default async function ForceGraph(
       .strength(0.4)
       .iterations(4)
     ) // change segment when ready
-    .force("cluster", forceCluster().strength(config.graphDataType === "parameter" ? 0.45 : 1)) // cluster all nodes belonging to the same submodule.
+    .force("cluster", forceCluster().strength(config.graphDataType === "parameter" ? 0.45 : 0.4)) // cluster all nodes belonging to the same submodule.
     // change segment when ready
     .force("charge", d3.forceManyBody().strength((d) => {
       if(config.graphDataType === "parameter") return expandedAll ? -100 : -250;
@@ -351,20 +350,25 @@ export default async function ForceGraph(
     return depth1Links
   }
 
-  const generateSymmetricNNArray = () => {
+  const generateSymmetricNNArray = (nnLinkData) => {
     // get title array for NN label titles
     const arr = [];
     for (let i = config.nearestNeighbourDegree; i > 0; i--) {
-      arr.push({type: "driver",level: i});
+      const type = nnLinkData.some((f) => f.depth === i && f.direction === "inbound") ? "driver" : ""
+      arr.push({type,level: i});
     }
     arr.push({type: "root", level: 0});
     for (let i = 1; i <= config.nearestNeighbourDegree; i++) {
-      arr.push({type: "outcome",level: i});
+      const type = nnLinkData.some((f) => f.depth === i && f.direction === "outbound") ? "outcome" : ""
+      if(nnLinkData.find((f) => f.depth === i && f.direction === "outbound")){
+        arr.push({type,level: i});
+      }
     }
     return arr;
   }
 
   function renderNNLevelLabels (nnData) {
+
 
     // render (or unrenders) the level titles
     const nnWidth = 200;
@@ -397,7 +401,7 @@ export default async function ForceGraph(
       .attr("font-size","0.7rem")
       .attr("text-anchor", "middle")
       .attr("fill","white")
-      .text((d) => `${d.level > 0 ? `Level ${d.level}`: ""}`);
+      .text((d) => `${d.type === "" ? "" : d.level > 0 ? `Level ${d.level}`: ""}`);
 
     return {nnWidth, nnHeight};
   }
@@ -406,9 +410,10 @@ export default async function ForceGraph(
     config.setNotDefaultSelectedLinks([]);
     config.setNotDefaultSelectedNodeNames([]);
     // render titles
-    const {nnWidth, nnHeight} = renderNNLevelLabels(nodeClick ? [] : generateSymmetricNNArray());
-    // get the links
+     // get the links
     const nnLinks = getNearestNeighbourLinks();
+
+    const {nnWidth, nnHeight} = renderNNLevelLabels(nodeClick ? [] : generateSymmetricNNArray(nnLinks));
 
     const getNNHierarchy = (parentId, id, direction, rootLink) =>  d3
       .stratify()
@@ -701,9 +706,10 @@ export default async function ForceGraph(
     }
 
     if(config.graphDataType !== "parameter"){
-
+      // different behaviour for submodule/segment ie quilt/middle
       const reRunSimulation = () => {
         chartNodes = showEle.nodes;
+        // find links for all visible nodes
         chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
           if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
             if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
@@ -716,33 +722,42 @@ export default async function ForceGraph(
           }
           return acc;
         },[])
-
+        // re-run simulation
         simulation.nodes([]).force("link").links([])
         simulation.nodes(showEle.nodes).force("link").links(chartLinks);
         simulation.alphaTarget(0.1).restart();
         // stop at calculated tick time (from previous dev)
         simulation.tick(TICK_TIME);
-        // fixing nodes until a data change
-        let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
-        config.expandedQuiltMiddleNodes.forEach((nodeId) => {
-          urlString += `${getUrlId(nodeId)}_`
-        })
+        // fixing nodes the next data change
         showEle.nodes.map((m) => {
           m.fx = m.x;
           m.fy = m.y;
         })
+        // reset urlString if needed
+        let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
+        config.expandedQuiltMiddleNodes.forEach((nodeId) => {
+          urlString += `${getUrlId(nodeId)}_`
+        })
         if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
           history.replaceState(null, '', urlString.substring(0,urlString.length-1));
         } else {
+          // clearing URL string if nothing expanded
           history.replaceState(null, '', window.location.href.split("?")[0]);
         }
         // stop simulation
         simulation.stop();
       }
+      // initial re-run
       reRunSimulation();
       const {segmentNames, subModuleNames, subModuleNodes} = config.hierarchyData;
+      // next section will only apply if quiltMiddleUrlExtras (populated on load in main.js) has entries
+      // for each entry a simulation re-run is performed - seems illogical but this feature was
+      // added at the end of dev and the key thing here is to make sure node positions are maintained
+      // within submodule + segment groups and don't overlap
+
       // find submodules
       const expandedSubmodules = config.quiltMiddleUrlExtras.filter((f) => subModuleNames.includes(f));
+      // for each submodule
       expandedSubmodules.forEach((submodule) => {
         // fetch node from data
         const submoduleNode = subModuleNodes.find((f) => f.id === submodule);
@@ -755,6 +770,7 @@ export default async function ForceGraph(
       // find segments
       const expandedSegments = config.quiltMiddleUrlExtras.filter((f) => segmentNames.includes(f));
       expandedSegments.forEach((segment) => {
+        // for each segment
         // fetch submodule from current simulation (for position)
         const segmentNode = showEle.nodes.find((f) => f.id === segment);
         if(segmentNode){
@@ -763,16 +779,20 @@ export default async function ForceGraph(
           reRunSimulation();
         }
       })
+      // as well as expanded submodules/segments one parameter at a time can be highlighted and populate url
       let parameterClickId = config.quiltMiddleUrlExtras.find((f) => !subModuleNames.includes(f) && !segmentNames.includes(f));
       if(parameterClickId){
-        parameterClickId = parameterClickId.replace(/~/g,'');
+        // convert to valid id
+        parameterClickId = getUrlId(parameterClickId);
         const parameterNode = showEle.nodes.find((f) => f.id === parameterClickId)
         if(parameterNode){
+          // if node exist - 'click it' and reset url string
           parameterNode.clicked = true;
           let urlString = `${window.location.href}_${getUrlId(parameterClickId)}`;
           history.replaceState(null, '', urlString);
         }
       }
+      // after all that, reset setQuildMiddleUrlExtras
       config.setQuiltMiddleUrlExtras([]);
     }
 
@@ -932,10 +952,9 @@ export default async function ForceGraph(
       return defaultValue;
     }
 
-
     function getNewQuiltMiddleNode (nodeId, x,y, type)  {
+        // used when resetting from URL click and in clickQuiltMiddle
         const descendant = config.expandedTreeData.descendants().find((f) => f.data.id === nodeId);
-
         return {
           id: descendant.data.id,
           name: descendant.data.NAME,
@@ -970,11 +989,10 @@ export default async function ForceGraph(
       }
       showEle.nodes.map((m) => {
         if(m.type !== "tier3"){
-          // unfixing nodes for new draw
+          // unfixing nodes for new draw (except parameters - ie tier3 - which always stay in place so they don't lose cluster look)
           m.fx = undefined;
           m.fy = undefined;
         }
-
       })
     }
 
@@ -1000,11 +1018,13 @@ export default async function ForceGraph(
       .on("mouseover",(event,d) => {
         tooltip.style("visibility", "hidden");
         if(config.graphDataType !== "parameter"){
-          // for submodule + segment -
+          // for submodule + segment
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
           if(!showEle.nodes.find((f) => f.clicked)){
+            // highlighted if nothing clicked
             quiltOrMiddleHighlight(d);
           }
+          // update tooltip
           let tooltipNode = config.parameterData.nodes.find((f) => f.id === d.id);
           if(!tooltipNode){
             tooltipNode = {NAME: d.data?.NAME || d.name, COLOR: d.color};
@@ -1012,7 +1032,6 @@ export default async function ForceGraph(
               tooltipNode["SUBMODULE_NAME"] = d.subModule;
             }
           }
-
           updateTooltip(tooltipNode,true);
         } else {
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
@@ -1035,7 +1054,7 @@ export default async function ForceGraph(
           }
         }
       })
-      .on("mouseout", (event,d) => {
+      .on("mouseout", (event) => {
         d3.select(".tooltipExtra").style("visibility","hidden");
           if(config.graphDataType === "parameter"){
             allNodeMouseout();
@@ -1056,6 +1075,7 @@ export default async function ForceGraph(
         tooltip.style("visibility", "hidden");
         if (event.defaultPrevented) return; // dragged
         if(config.currentLayout === "default" && config.graphDataType === "parameter"){
+          // default click (NN 1 search but staying in this layout)
           d3.select(event.currentTarget).raise();
           config.setNearestNeighbourDegree(1);
           clickNode(d.NAME, "node", graph)
@@ -1066,14 +1086,19 @@ export default async function ForceGraph(
           d3.select(".tooltipExtra").style("visibility","hidden");
           allNodeMouseout();
           if (isNormalClick(event)) {
+            // if no shift/alt/command
             if(d.children && d.type !== "tier3"){
+              // for tier1 + tier2 nodes - EXPAND
               clickQuiltMiddle(d);
               updatePositions(true);
             } else {
+              // for tier3 nodes
               if(d.clicked){
+                // if clicked - reset so not clicked and remove from expandedQuiltMiddleNodes list
                 d.clicked = false;
                 config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !==d.id))
               } else {
+                // if not clicked - highlight, show label, click, add to expandedQuiltMiddleNodes list + Url string
                 quiltOrMiddleHighlight(d);
                 d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
                 d.clicked = true;
@@ -1083,6 +1108,7 @@ export default async function ForceGraph(
               }
             }
           } else if (d.type === "tier3") {
+            // shift/alt/command click + tier 3
             //delete all depth 2 with my parent
             showEle.nodes = showEle.nodes.filter((f) => (f.parent?.id || f.parent) !== d.parent);
             // add parent if depth 1 = delete all
@@ -1090,6 +1116,7 @@ export default async function ForceGraph(
             config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.parent));
             updatePositions(true);
           } else if (d.type === "tier2") {
+            // shift/alt/command click + tier 2
             // delete all with matching subModule
             showEle.nodes = showEle.nodes.filter((f) => f.subModule !== d.subModule);
             // add submodule parent
@@ -1097,6 +1124,7 @@ export default async function ForceGraph(
             config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.subModule));
             updatePositions(true);
           }
+          // can't do collapse tier1 (or submodule) nodes
         }
       })
 
@@ -1168,10 +1196,11 @@ export default async function ForceGraph(
     }
 
     if(expandedAll && config.graphDataType ==="parameter" && config.nearestNeighbourOrigin !== ""){
+      // default mode by valid NN - simulate clickNode
       clickNode(config.nearestNeighbourOrigin,"node",graph);
     }
 
-    // NN URL string, degree > 1
+    // NNV URL string - simulate click to layout NN on menu - timeout delay needed
     if(config.nearestNeighbourOrigin !== "" && config.nnUrlView){
       setTimeout(() => {
         d3.select("#nearestNeighbour")
@@ -1180,13 +1209,14 @@ export default async function ForceGraph(
         config.setNNUrlView(false);
       },0)
     }
-    // SP URL STRING
+    // SP URL string - simulate click to layout SP - timeout delay needed
     if(config.shortestPathStart !== "" && config.shortestPathEnd !== "" && config.currentLayout === "default"){
       setTimeout(() => {
         d3.select("#shortestPath").dispatch("click");
       },0)
     }
 
+    // if a parameter/tier3 node is clicked - highlight and show label - timeout delay needed
     if(showEle.nodes.some((s) => s.clicked)){
       // for url retrieval, checking if clicked and changing appearance after all nodes have rendered
       const clickedNode = showEle.nodes.find((s) => s.clicked);
@@ -1202,7 +1232,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 6 : 2);
+      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 5 : 2);
       x += d.x * k
       y += d.y * k;
       z += k;
