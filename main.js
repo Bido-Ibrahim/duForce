@@ -221,6 +221,78 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
 
 }
 
+const handleUrlInputs = () => {
+  // check if reload
+  const navEntry = performance.getEntriesByType("navigation")[0];
+
+  if(navEntry.type === "reload"){
+    // reset url to "" and return
+    console.log('resetting url')
+    history.replaceState(null, '', window.location.href.split("?")[0]);
+    return;
+  }
+
+  // if url search contents
+  if (window.location.search) {
+    String(window.location.search)
+      .replace(/\?/g, '') // remove ?
+      .split("&") // split the arguments
+      .forEach((param) => {
+        const args = param.split("=");
+        const urlType = args[0];
+        if(args.length === 2){
+          // must be 2 arguments
+          let parameters = args[1];
+          if(parameters.includes("~")){
+            // ~used for upper case (URL lower/upper unreliable with caching)
+            parameters = parameters.replace(/~/g,'').toUpperCase();
+          }
+          // split parameters
+          const {0: parameter1, 1: parameter2} = parameters.split(":");
+          if(urlType.includes("NN") && config.parameterData.nodes.some((s) => s.id === parameter1)){
+            // NN - only applies if parameter is valid
+            // set origin + degree - depending on NND/NNV set currentLayout
+            config.setNearestNeighbourOrigin(parameter1);
+            config.setNearestNeighbourDegree(+parameter2);
+            config.setCurrentLayout(urlType === "NND" ? "default" : "nearestNeighbour");
+            if(urlType === "NNV"){
+              // additional config needed to change layout to NN after loading
+              config.setNNUrlView(true);
+            }
+            // change type => parameter and check input
+            config.setGraphDataType("parameter");
+            d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
+              .property("checked", true)
+          } else if (urlType === "SP" && config.parameterData.nodes.some((s) => s.id === parameter1)
+            && config.parameterData.nodes.some((s) => s.id === parameter2)){
+            // SP only applies if both parameters are valid
+            // set start and end
+            config.setShortestPathStart(parameter1);
+            config.setShortestPathEnd(parameter2);
+            // change type => parameter and check input
+            config.setGraphDataType("parameter");
+            d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
+              .property("checked", true);
+          } else if (urlType === "QV" || urlType === "MV"){
+            // quilt or middle
+            if(urlType === "MV"){
+              // for middle, change type => segment and check input
+              config.setGraphDataType("segment");
+              d3.selectAll('input[name="chartDataRadio"][value="segment"]')
+                .property("checked", true);
+            }
+            // set config
+            config.setQuiltMiddleUrlExtras(parameters.split("_"));
+          } else {
+            config.setQuiltMiddleUrlExtras([]);
+          }
+        }
+      });
+    const newUrl = window.location.origin + window.location.pathname;
+    history.replaceState(null, '', newUrl);
+  }
+
+}
 async function getData() {
   try {
     // const params = {
@@ -287,58 +359,7 @@ async function getData() {
       config.setExpandedQuiltMiddleNodes([]);
       config.setQuiltMiddleUrlExtras([]);
 
-      const navEntry = performance.getEntriesByType("navigation")[0];
-
-      if(navEntry.type === "reload"){
-        console.log('resetting url')
-        history.replaceState(null, '', window.location.href.split("?")[0]);
-      }
-
-      if (window.location.search) {
-        String(window.location.search)
-          .replace(/\?/g, '')
-          .split("&")
-          .forEach((param) => {
-            const args = param.split("=");
-            if(args.length === 2){
-              let parameters = args[1];
-              if(parameters.includes("~")){
-                parameters = parameters.replace(/~/g,'').toUpperCase();
-              }
-              const {0: parameter1, 1: parameter2} = parameters.split(":");
-              if(args[0].includes("NN") && config.parameterData.nodes.some((s) => s.id === parameter1)){
-                config.setNearestNeighbourOrigin(parameter1);
-                config.setNearestNeighbourDegree(+parameter2);
-                config.setCurrentLayout(args[0] === "NND" ? "default" : "nearestNeighbour");
-                if(args[0] === "NNV"){
-                  config.setNNUrlView(true);
-                }
-                config.setGraphDataType("parameter");
-                d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
-                  .property("checked", true)
-              } else if (args[0] === "SP" && config.parameterData.nodes.some((s) => s.id === parameter1)
-                && config.parameterData.nodes.some((s) => s.id === parameter2)){
-                config.setShortestPathStart(parameter1);
-                config.setShortestPathEnd(parameter2);
-                config.setGraphDataType("parameter");
-                d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
-                  .property("checked", true);
-              } else if (args[0] === "QV" || args[0] === "MV"){
-                if(args[0] === "MV"){
-                  d3.selectAll('input[name="chartDataRadio"][value="segment"]')
-                    .property("checked", true);
-                  config.setGraphDataType("segment");
-                }
-                config.setQuiltMiddleUrlExtras(args[1].split("_"));
-              } else {
-                config.setQuiltMiddleUrlExtras([]);
-              }
-            }
-          });
-        const newUrl = window.location.origin + window.location.pathname;
-        history.replaceState(null, '', newUrl);
-      }
-
+      handleUrlInputs();
       // copy hierarchy data
       const nodesCopy = treeData.copy();
       // set more config variables

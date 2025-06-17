@@ -185,6 +185,9 @@ select {
     z-index: 500;
 }
 
+#suggestions-container-sp-end{
+    top: 1.8rem;
+}
 .suggestion {
     padding: 0.5rem;
     cursor: pointer;
