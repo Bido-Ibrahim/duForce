@@ -822,6 +822,7 @@ export default async function ForceGraph(
       return true;
     }
 
+
     const getLinkAlpha = (link, linkLength) => {
       const linkOpacity = linkLength > 100 ? 0.3 : 0.6;
       if(expandedAll || config.currentLayout !== "default" || config.graphDataType !== "parameter") return linkOpacity;
@@ -1756,6 +1757,11 @@ export default async function ForceGraph(
 
       if (filteredSuggestions.length > 0) {
         suggestionsContainer.style.display = "block";
+        if(config.graphDataType !== "parameter"){
+          showEle.nodes.map((m) => m.clicked = false);
+          svg.selectAll(".nodesGroup").attr("opacity",1);
+           updatePositions(true);
+        }
       } else {
         suggestionsContainer.style.display = "none";
       }
@@ -1766,6 +1772,7 @@ export default async function ForceGraph(
       simulation.alpha(0);
       const inputValue = searchInput.value;
       updateSuggestions(inputValue);
+
     });
 
   }
