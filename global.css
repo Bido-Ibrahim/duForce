@@ -303,6 +303,15 @@ input[type="range"] {
     font-size: 0.7rem;
 }
 
+/* reset button (default view only) */
+#expandSegments{
+    position: absolute;
+    top: 3.7rem;
+    right: 0.6rem;
+    cursor: pointer;
+    font-size: 0.7rem;
+}
+
 /* zoom button menu and elements */
 #zoom-button-component {
     position: relative;
@@ -401,6 +410,7 @@ input[type="range"] {
 }
 
 #layout-button {
+    display: none;
     position: absolute;
     top: 1.65rem;
     right: 0.5rem;
@@ -426,7 +436,7 @@ input[type="range"] {
 }
 /* search input, buttons etc. */
 #parameter-menu {
-    display: none;
+    display: block;
 }
 
 /* Link to show tabbed component */

@@ -10,18 +10,17 @@ import { dijkstra } from "graphology-shortest-path";
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
-  d3.select("#resetButton").style("top", config.graphDataType === "parameter" ? "3.7rem" : "2.1rem")
 
   d3.select("#infoMessage").style("visibility",config.graphDataType !== "parameter" || config.currentLayout === "default" ? "hidden" : "visible");
   d3.select("#tooltipCount").text("");
-  d3.select("#parameter-menu").style("display", config.graphDataType === "parameter" ? "block" : "none");
+  d3.select("#layout-button").style("display", config.graphDataType === "parameter" ? "block" : "none");
   d3.select("#tabbed-component")
     .classed("hidden",config.graphDataType !== "parameter"
       || (config.graphDataType === "parameter" && config.currentLayout !== "default")
       || (width < 1000 && hideInfoHidden) || hideInfoHidden);
   const parameterOtherPosition = config.currentLayout === "default" ? "2.9rem" : "4.8rem";
   d3.selectAll(".otherButton")
-    .style("top", config.graphDataType === "parameter" ? parameterOtherPosition : "1.4rem");
+    .style("top", config.graphDataType === "parameter" ? parameterOtherPosition : "2.9rem");
   d3.selectAll(".viewButton")
     .style("opacity",config.graphDataType === "parameter" && config.currentLayout === "default"? 1 : 0)
     .style("top",`${config.graphDataType === "parameter" ? 3.1 : 1.4}rem`);
@@ -29,7 +28,7 @@ const resetMenuVisibility = (width) => {
   if(config.graphDataType === "parameter" && config.currentLayout !== "default"){
     searchTabContainerHeight = "6rem";
   } else if (config.graphDataType !== "parameter"){
-    searchTabContainerHeight = "2.5rem";
+    searchTabContainerHeight = "4rem";
   } else if (hideInfoHidden){
     searchTabContainerHeight = "4rem";
   }
@@ -606,7 +605,20 @@ export default async function ForceGraph(
     // reset background circle and infoMessage
     d3.selectAll(".nodeBackgroundCircle").attr("stroke-width",0);
     d3.select("#infoMessage").style("visibility","hidden");
-    if(origin === "search" && config.currentLayout === "nearestNeighbour"){
+    if(origin === "search" && config.graphDataType !== "parameter"){
+      showEle.nodes.map((m) => m.clicked = false);
+      const matchingNode = config.parameterData.nodes.find((f) => f.NAME === nodeName);
+      if(!config.expandedQuiltMiddleNodes.some((s) => s === matchingNode.subModule)){
+        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(matchingNode.subModule));
+      }
+      if(!config.expandedQuiltMiddleNodes.some((s) => s === matchingNode.segment)){
+        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(matchingNode.segment));
+      }
+      if(!config.expandedQuiltMiddleNodes.some((s) => s === nodeName)){
+        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(nodeName));
+      }
+      updatePositions(true);
+    } else if(origin === "search" && config.currentLayout === "nearestNeighbour"){
       // layout NN search
       config.setNearestNeighbourOrigin(nodeName);
       positionNearestNeighbours(false);
@@ -786,7 +798,7 @@ export default async function ForceGraph(
       let parameterClickId = config.quiltMiddleUrlExtras.find((f) => !subModuleNames.includes(f) && !segmentNames.includes(f));
       if(parameterClickId){
         // convert to valid id
-        parameterClickId = getUrlId(parameterClickId);
+        parameterClickId = parameterClickId.replace(/~/g,'');
         const parameterNode = showEle.nodes.find((f) => f.id === parameterClickId)
         if(parameterNode){
           // if node exist - 'click it' and reset url string
@@ -936,7 +948,7 @@ export default async function ForceGraph(
       svg.selectAll(".nodeLabel").style("display", getNodeLabelDisplay);
       // reset nodes and links after a mouseout
       svg.selectAll(".nodeCircle")
-        .attr("stroke-width", 0)
+        .attr("stroke-width", config.graphDataType === "parameter" ? 0 : 3)
         .attr("opacity",(d) =>
           config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
             config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
@@ -950,7 +962,7 @@ export default async function ForceGraph(
     const getNodeStrokeElements = (element, d) => {
       const defaultValue = element === "width" ? 0 : 1;
       const highlight = element === "width" ? 0.5 : 0.5;
-      if(config.graphDataType !== "parameter") return defaultValue;
+      if(config.graphDataType !== "parameter") return 3;
       if(d.id === config.nearestNeighbourOrigin) return highlight;
       if(config.shortestPathStart === d.id && config.shortestPathEnd !== "") return highlight;
       if(config.shortestPathEnd === d.id && config.shortestPathStart !== "") return highlight;
@@ -974,9 +986,7 @@ export default async function ForceGraph(
           radiusVar: descendant.children ? descendant.leaves().length : 0,
           group: nodeId,
           parent: descendant.parent.data.id,
-          stroke: "white",
           subModule: descendant.data.subModule,
-          strokeWidth: 0,
           type,
           x,
           y
@@ -1024,7 +1034,7 @@ export default async function ForceGraph(
         tooltip.style("visibility", "hidden");
         if(config.graphDataType !== "parameter"){
           // for submodule + segment
-          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", config.graphDataType === "parameter" ? 1 : 3);
           if(!showEle.nodes.find((f) => f.clicked)){
             // highlighted if nothing clicked
             quiltOrMiddleHighlight(d);
@@ -1038,9 +1048,10 @@ export default async function ForceGraph(
             }
           }
           updateTooltip(tooltipNode,true);
-          showTooltipExtra(event.x + 10, event.y,"CLICK to expand<br>SHIFT + CLICK to collapse",false)
+          const tooltipStart = d.type === "tier3" ? "highlight" : "expand";
+          showTooltipExtra(event.x + 10, event.y,`CLICK to ${tooltipStart}<br>SHIFT + CLICK to collapse`,false)
         } else {
-          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", 1);
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", config.graphDataType === "parameter" ? 1 : 3);
           updateTooltip(d, true, event.x);
           if(config.currentLayout === "nearestNeighbour"){
             // slightly different behaviour for NN
@@ -1148,10 +1159,10 @@ export default async function ForceGraph(
       .select(".nodeCircle")
       .attr("opacity", (d) => getNodeAlpha(d.NAME, d.radiusVar,false))
       .attr("r", (d) => d.radius)
-      .attr("fill", (d) => d.color)
-      .attr("stroke", "white")
-      .attr("stroke-width", (d) => d.strokeWidth ? d.strokeWidth : getNodeStrokeElements("width",d))
-      .attr("stroke-opacity", (d) => d.strokeWidth ? 1 : getNodeStrokeElements("opacity",d))
+      .attr("fill", (d) => config.graphDataType === "parameter" ? d.color : "white")
+      .attr("stroke", (d) => config.graphDataType === "parameter" ? "white" : d.color)
+      .attr("stroke-width", (d) =>   getNodeStrokeElements("width",d))
+      .attr("stroke-opacity", (d) =>  getNodeStrokeElements("opacity",d))
 
     const pulseNNCircle = () => {
       // node animation for NN origin
@@ -1704,8 +1715,9 @@ export default async function ForceGraph(
 
     // Function to filter suggestions based on user input
     const  filterSuggestions = (input) => {
-      const fuseOptions = {keys: ["NAME","DEFINITION"], threshold:0.4};
-      const fuse = new Fuse(variableData, fuseOptions);
+      const fuseData = config.graphDataType === "parameter" ? variableData : config.parameterData.nodes;
+      const fuseOptions = {keys:  ["NAME","DEFINITION"], threshold:0.4};
+      const fuse = new Fuse(fuseData, fuseOptions);
       const result = fuse.search(input);
       // from Chat GPT (with some help)
       // If you want exact matches to come at the very top, you can filter first for exact matches
@@ -1714,7 +1726,6 @@ export default async function ForceGraph(
         .sort((a,b) => a.item.NAME.toLowerCase().localeCompare(b.item.NAME.toLowerCase()));
       // Combine exact matches with non-exact matches
       const finalResults = [...exactMatches, ...nonExactMatches];
-
       return finalResults.map((m) => m.item);
     }
 
@@ -1730,11 +1741,10 @@ export default async function ForceGraph(
         suggestionElement.addEventListener("click", () => {
           searchInput.value = item.NAME;
           suggestionsContainer.style.display = "none";
-
-          if (showEle.nodes.find((n) => n.NAME === item.NAME)) {
+          if (showEle.nodes.find((n) => n.NAME === item.NAME) || config.graphDataType !== "parameter") {
               clickNode(item.NAME, `search${extraIdString}`, graph);
           } else {
-            if(config.currentLayout !== "default" && item.NAME === ""){
+            if(config.graphDataType === "parameter" && config.currentLayout !== "default" && item.NAME === ""){
               config.setNotDefaultSelectedLinks([]);
               config.setNotDefaultSelectedNodeNames([]);
               updatePositions(false);
