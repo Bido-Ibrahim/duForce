@@ -9,8 +9,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" crossorigin="anonymous"></script>
     
     <title>Graph Application</title>
-    <script type="module" crossorigin src="/duForce/assets/index-0a7f6270.js"></script>
-    <link rel="stylesheet" href="/duForce/assets/index-08afbac6.css">
+    <script type="module" crossorigin src="/duForce/assets/index-30aab63a.js"></script>
+    <link rel="stylesheet" href="/duForce/assets/index-468657bf.css">
   </head>
   <body>
     <!-- tooltipCount + info message (top left + middle if needed) -->
@@ -71,9 +71,9 @@
     <div id="search-tab-container">
       <!-- data choice radio -->
       <div id ="dataRadio">View:
-        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule" checked>Quilt</label>
-          <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Middle</label>
-         <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter">Main</label>
+        <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="submodule" checked>Macro</label>
+          <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="segment">Meso</label>
+         <label><input type="radio" class="chartDataRadio" name="chartDataRadio" value="parameter">Variable</label>
        </div>
        <!-- parameter menu with - search input, nnDegreeDiv + buttons -->
       <div id="parameter-menu">
@@ -114,6 +114,7 @@
 
         <p class="viewButton" id="showInfo">Show interactive menu</p>
         <p class="viewButton hidden" id="hideInfo">Hide interactive menu</p>
+      <p  id="unselectAll">Unselect All</p>
       <!-- helpinfo panel, fixed bottom right above zoom buttons, only available on request -->
       <div id="helpInformationPanel">
         <p>Add your help information here.</p>
@@ -166,6 +167,8 @@
         tabbedComponent.classList.add("hidden");
         showInfo.classList.remove("hidden");
         hideInfo.classList.add("hidden");
+        document.getElementById("unselectAll").style.opacity = 0;
+
       });
 
       showInfo.addEventListener("click", function () {
@@ -173,6 +176,7 @@
         tabbedComponent.classList.remove("hidden");
         showInfo.classList.add("hidden");
         hideInfo.classList.remove("hidden");
+        document.getElementById("unselectAll").style.opacity = 1;
       });
     </script>
   </body>

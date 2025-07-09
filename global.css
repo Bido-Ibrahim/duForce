@@ -463,6 +463,15 @@ input[type="range"] {
     cursor: pointer;
     font-size: 0.7rem;
 }
+
+#unselectAll{
+    opacity: 0;
+    top: 5.8rem;
+    right: 0.5rem;
+    position: absolute;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
 .hidden {
     display: none;
 }

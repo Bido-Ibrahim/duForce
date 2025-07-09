@@ -1,6 +1,16 @@
 
-export const COLOR_SCALE_RANGE = ["#418BFC", "#46BCC8", "#D6AB1B", "#EB5E68", "#B6BE1C", "#F64D1A", "#BA6DE4", "#EA6BCB", "#B9AAC8", "#F08519"];
-
+export const COLOR_SCALE_RANGE = [
+"#0072B2",
+"#D55E00",
+"#009E73",
+"#CC79A7",
+"#56B4E9",
+"#F0E442",
+"#999999",
+"#E69F00",
+"#64C4CD",
+"#6A0DAD",
+"#BADA55"]
 export const MESSAGES = {"noSP": "There is no shortest path between the selected nodes",
   "SP" : "Search for nodes to find the Shortest Path",
   "NN" : "Search for nodes to find the Nearest Neighbour",

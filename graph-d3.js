@@ -12,6 +12,7 @@ const resetMenuVisibility = (width) => {
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
 
   d3.select("#infoMessage").style("visibility",config.graphDataType !== "parameter" || config.currentLayout === "default" ? "hidden" : "visible");
+  d3.select("#unselectAll").style("opacity", config.graphDataType === "parameter" && !hideInfoHidden ? 1 : 0);
   d3.select("#tooltipCount").text("");
   d3.select("#layout-button").style("display", config.graphDataType === "parameter" ? "block" : "none");
   d3.select("#tabbed-component")
@@ -111,8 +112,8 @@ export default async function ForceGraph(
   const graph = initGraphologyGraph(showEle.nodes, showEle.links);
 
   const getQuiltMiddleDepthMultiple = (type) => {
-    if(config.graphDataType === "submodule") return type === "tier1" ? 8 : type === "tier2" ? 6 : 1.4
-    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 5 : 1.2
+    if(config.graphDataType === "submodule") return type === "tier1" ? 8 : type === "tier2" ? 6 : 2
+    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 5 : 1.2;
   };
   // Initialize simulation
   const simulation = d3
@@ -146,13 +147,13 @@ export default async function ForceGraph(
   svg.select(".markerGroupStart")
     .attr("id", "arrowPathStart")
     .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 5)
-    .attr("markerWidth", 10)
-    .attr("markerHeight", 10)
+    .attr("refX", 4)
+    .attr("markerWidth", 12.5)
+    .attr("markerHeight", 12.5)
     .attr("orient", "auto");
 
   svg.select(".markerPathStart")
-    .attr("fill", "#606060")
+   .attr("fill", "#606060")
     .attr("stroke-linecap", "round")
     .attr("stroke-linejoin", "round")
     .attr("d", "M9,-4L1,0L9,4") // M9,-4L1,0L9,4 (start)
@@ -160,9 +161,9 @@ export default async function ForceGraph(
   svg.select(".markerGroupEnd")
     .attr("id", "arrowPathEnd")
     .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 5)
-    .attr("markerWidth", 10)
-    .attr("markerHeight", 10)
+    .attr("refX", 8.25)
+    .attr("markerWidth", 12.5)
+    .attr("markerHeight", 12.5)
     .attr("orient", "auto");
 
   svg.select(".markerPathEnd")
@@ -271,6 +272,15 @@ export default async function ForceGraph(
       .on("change", (event) => {
         config.setTooltipRadio(event.currentTarget.value);
         updatePositions(true);
+        if(event.currentTarget.value !== "both"){
+          const filteredListToShow = config.notDefaultSelectedNodeNames.filter((f) => f.direction === event.currentTarget.value);
+          const tooltipContent = getTooltipTable(filteredListToShow,{});
+          tooltip.html(`${tooltipContent.join("")}`)
+        } else {
+          const tooltipContent = getTooltipTable(config.notDefaultSelectedNodeNames,{});
+          tooltip.html(`${tooltipContent.join("")}`)
+        }
+        activateTooltipToggle();
       })
   }
 
@@ -949,7 +959,7 @@ export default async function ForceGraph(
       svg.selectAll(".nodeLabel").style("display", getNodeLabelDisplay);
       // reset nodes and links after a mouseout
       svg.selectAll(".nodeCircle")
-        .attr("stroke-width", config.graphDataType === "parameter" ? 0 : 3)
+        .attr("stroke-width",  0)
         .attr("opacity",(d) =>
           config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
             config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
@@ -963,7 +973,7 @@ export default async function ForceGraph(
     const getNodeStrokeElements = (element, d) => {
       const defaultValue = element === "width" ? 0 : 1;
       const highlight = element === "width" ? 0.5 : 0.5;
-      if(config.graphDataType !== "parameter") return 3;
+      if(config.graphDataType !== "parameter") return 1;
       if(d.id === config.nearestNeighbourOrigin) return highlight;
       if(config.shortestPathStart === d.id && config.shortestPathEnd !== "") return highlight;
       if(config.shortestPathEnd === d.id && config.shortestPathStart !== "") return highlight;
@@ -1035,7 +1045,7 @@ export default async function ForceGraph(
         tooltip.style("visibility", "hidden");
         if(config.graphDataType !== "parameter"){
           // for submodule + segment
-          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", config.graphDataType === "parameter" ? 1 : 3);
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width",  1);
           if(!showEle.nodes.find((f) => f.clicked)){
             // highlighted if nothing clicked
             quiltOrMiddleHighlight(d);
@@ -1052,7 +1062,7 @@ export default async function ForceGraph(
           const tooltipStart = d.type === "tier3" ? "highlight" : "expand";
           showTooltipExtra(event.x + 10, event.y,`CLICK to ${tooltipStart}<br>SHIFT + CLICK to collapse`,false)
         } else {
-          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width", config.graphDataType === "parameter" ? 1 : 3);
+          d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width",  1 );
           updateTooltip(d, true, event.x);
           if(config.currentLayout === "nearestNeighbour"){
             // slightly different behaviour for NN
@@ -1160,8 +1170,8 @@ export default async function ForceGraph(
       .select(".nodeCircle")
       .attr("opacity", (d) => getNodeAlpha(d.NAME, d.radiusVar,false))
       .attr("r", (d) => d.radius)
-      .attr("fill", (d) => config.graphDataType === "parameter" ? d.color : "white")
-      .attr("stroke", (d) => config.graphDataType === "parameter" ? "white" : d.color)
+      .attr("fill", (d) =>  d.color )
+      .attr("stroke", "white")
       .attr("stroke-width", (d) =>   getNodeStrokeElements("width",d))
       .attr("stroke-opacity", (d) =>  getNodeStrokeElements("opacity",d))
 
@@ -1279,6 +1289,52 @@ export default async function ForceGraph(
     return force;
   }
 
+  const getTooltipTable = (listToShow, nodeTableMapper) => {
+    let content = [];
+    if(listToShow.length > 0){
+      if(!listToShow.some((s) => s.direction === undefined) && config.currentLayout === "default"){
+        if(config.tooltipRadio === "none"){
+          config.setTooltipRadio("both");
+        }
+        const nnNode = showEle.nodes.find((f) => f.NAME === config.nearestNeighbourOrigin);
+        if(nnNode) {
+          content = [`<div class="tooltipTableContents" style="white-space: nowrap; text-overflow: ellipsis; background-color :${nnNode.color}">${nnNode.NAME.toUpperCase()}${nnNode["DISPLAY NAME"] ? " - " : ""}${nnNode["DISPLAY NAME"] || ""}</div>
+            <div id="directionToggle">
+             <label><input type="radio" class="directionToggle" name="directionToggle" value="both" ${config.tooltipRadio === "both" ? "checked" : ""}>both</label>
+             <label><input type="radio" class="directionToggle" name="directionToggle" value="in" ${config.tooltipRadio === "in" ? "checked" : ""}>only &larr;</label>
+             <label><input type="radio" class="directionToggle" name="directionToggle" value="out" ${config.tooltipRadio === "out" ? "checked" : ""}>only &rarr;</label>
+           </div>`]
+          listToShow = listToShow.filter((f) => f.name !== config.nearestNeighbourOrigin);
+        }
+      } else {
+        config.setTooltipRadio("none");
+      }
+      tooltip.style("padding","0.05rem")
+      const shortestPathHeader = config.nearestNeighbourOrigin === "" ? "" : `<th style='width:5%;'></th>`;
+      const tableStart = `<table style='overflow-y: auto; overflow-x: hidden; font-size: 0.7rem; table-layout: fixed;  width: 100%;'><thead><tr>${config.graphDataType === "parameter" ? "<th style='width:30%; color: black;'>SEGMENT</th>" : ""}<th style='width:35%; color: black;'>NAME</th><th style='width:30%; color: black;'>DISPLAY NAME</th>${shortestPathHeader}</tr></thead><tbody>`
+      content.push(tableStart);
+      let nodeRows = []
+      listToShow.forEach((d,i) => {
+        let directionUnicode = "";
+        if(d.direction && d.direction !== "centre"){
+          directionUnicode = d.direction === "in" ? ` (&larr;)` : ` (&rarr;)`
+        }
+        const nodeName = typeof  d === "string" ? d : d.name;
+        const matchingNode = showEle.nodes.find((f) => f.NAME === nodeName);
+        if(matchingNode){
+          const shortestPathCell = config.nearestNeighbourOrigin === "" ? "" : `<td class='shortestPathLink' id='${matchingNode.NAME}' style='width:5%; cursor:pointer;'><i class='fas fa-wave-square'></i></td>`
+          nodeRows.push({row: `<tr>${config.graphDataType === "parameter" ? `<td style='background-color:${matchingNode.color}; color: white; width:30%;'>${matchingNode.SEGMENT_NAME}</td>`: ""}<td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${directionUnicode} ${nodeName}</td><td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${matchingNode["DISPLAY NAME"] || ""}</td>${shortestPathCell}</tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
+          nodeTableMapper[`nodeTableRow${i}`] = matchingNode["Parameter Explanation"];
+        }
+      })
+      nodeRows = nodeRows.sort((a,b) => d3.ascending(a.subModule, b.subModule) || d3.ascending(a.name, b.name));
+      content = content.concat(nodeRows.map((m) => m.row));
+      const tableEnd = "</tbody></table>";
+      content.push(tableEnd);
+      return content;
+    }
+  }
+
   // Function to update tooltip content inside a DIV
   function updateTooltip(d, mouseover) {
     let contentStr = "";
@@ -1304,49 +1360,8 @@ export default async function ForceGraph(
       })
       content.map((d) => (contentStr += d));
     } else if (!expandedAll || (config.currentLayout !== "default" && config.graphDataType === "parameter")) {
-      let content = [];
-       if(listToShow.length > 0){
-         if(!listToShow.some((s) => s.direction === undefined) && config.currentLayout === "default"){
-           if(config.tooltipRadio === "none"){
-             config.setTooltipRadio("both");
-           }
-           const nnNode = showEle.nodes.find((f) => f.NAME === config.nearestNeighbourOrigin);
-           if(nnNode) {
-             content = [`<div style="white-space: nowrap; text-overflow: ellipsis; background-color :${nnNode.color}">${nnNode.NAME.toUpperCase()}${nnNode["DISPLAY NAME"] ? " - " : ""}${nnNode["DISPLAY NAME"] || ""}</div>
-            <div id="directionToggle">
-             <label><input type="radio" class="directionToggle" name="directionToggle" value="both" ${config.tooltipRadio === "both" ? "checked" : ""}>both</label>
-             <label><input type="radio" class="directionToggle" name="directionToggle" value="in" ${config.tooltipRadio === "in" ? "checked" : ""}>&larr; only</label>
-             <label><input type="radio" class="directionToggle" name="directionToggle" value="out" ${config.tooltipRadio === "out" ? "checked" : ""}>&rarr; only</label>
-           </div>`]
-             listToShow = listToShow.filter((f) => f.name !== config.nearestNeighbourOrigin);
-           }
-         } else {
-           config.setTooltipRadio("none");
-         }
-        tooltip.style("padding","0.05rem")
-         const shortestPathHeader = config.nearestNeighbourOrigin === "" ? "" : `<th style='width:5%;'></th>`;
-        const tableStart = `<table style='overflow-y: auto; overflow-x: hidden; font-size: 0.7rem; table-layout: fixed;  width: 100%;'><thead><tr>${config.graphDataType === "parameter" ? "<th style='width:30%; color: black;'>SEGMENT</th>" : ""}<th style='width:35%; color: black;'>NAME</th><th style='width:30%; color: black;'>DISPLAY NAME</th>${shortestPathHeader}</tr></thead><tbody>`
-        content.push(tableStart);
-        let nodeRows = []
-        listToShow.forEach((d,i) => {
-          let directionUnicode = "";
-          if(d.direction && d.direction !== "centre"){
-            directionUnicode = d.direction === "in" ? ` (&larr;)` : ` (&rarr;)`
-          }
-          const nodeName = typeof  d === "string" ? d : d.name;
-          const matchingNode = showEle.nodes.find((f) => f.NAME === nodeName);
-          if(matchingNode){
-            const shortestPathCell = config.nearestNeighbourOrigin === "" ? "" : `<td class='shortestPathLink' id='${matchingNode.NAME}' style='width:5%; cursor:pointer;'><i class='fas fa-wave-square'></i></td>`
-            nodeRows.push({row: `<tr>${config.graphDataType === "parameter" ? `<td style='background-color:${matchingNode.color}; color: white; width:30%;'>${matchingNode.SEGMENT_NAME}</td>`: ""}<td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${nodeName}${directionUnicode}</td><td class="nodeTableRow" id='nodeTableRow${i}' style="width:35%;">${matchingNode["DISPLAY NAME"] || ""}</td>${shortestPathCell}</tr>`, subModule: matchingNode.SUBMODULE_NAME, name: matchingNode.NAME}); // tooltip title
-            nodeTableMapper[`nodeTableRow${i}`] = matchingNode["Parameter Explanation"];
-          }
-        })
-        nodeRows = nodeRows.sort((a,b) => d3.ascending(a.subModule, b.subModule) || d3.ascending(a.name, b.name));
-        content = content.concat(nodeRows.map((m) => m.row));
-        const tableEnd = "</tbody></table>";
-        content.push(tableEnd);
-        contentStr = content.join("");
-      }
+      let content = getTooltipTable(listToShow, nodeTableMapper);
+      contentStr = content.join("");
     }
 
     let tooltipVisibility = "visible";
@@ -1383,7 +1398,6 @@ export default async function ForceGraph(
         if(measureWidth(currentText,12) > currentWidth){
           showTooltipExtra(event.x, event.y, currentText);
         }
-
       })
       .on("mouseout", () => {
         tooltipExtra.style("visibility","hidden");
@@ -1407,6 +1421,7 @@ export default async function ForceGraph(
         d3.select('#search-container-sp-end').style("display","block");
         d3.select("#search-input-sp-end").property("value",config.shortestPathEnd);
         d3.select("#nnDegreeDiv").style("display","none");
+        d3.select("#infoMessage").text("");
         d3.selectAll("#search-input")
           .attr("placeholder","Search for start node")
           .property("value",config.shortestPathStart);
@@ -1551,6 +1566,25 @@ export default async function ForceGraph(
 
 
       });
+
+    const unselectButton =  d3.select("#unselectAll");
+
+    unselectButton
+      .style("cursor","pointer")
+      .on("mouseover mousemove", (event) => {
+        d3.select(event.currentTarget).style("color","#A0A0A0");
+        showTooltipExtra(event.x, event.y, "unselect all nodes")
+      })
+      .on("mouseout", () => {
+        resetButtons.style("color","white");
+        tooltipExtra.style("visibility","hidden");
+      })
+      .on("click", () => {
+        config.selectedNodeNames = [];
+        resetMenuVisibility(width);
+        updatePositions(false);
+      })
+
     const resetButtons = d3.selectAll(".resetButton");
 
     resetButtons
