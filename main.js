@@ -274,17 +274,17 @@ const handleUrlInputs = () => {
             d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
               .property("checked", true);
           } else if (urlType === "QV" || urlType === "MV"){
-            // quilt or middle
+            // macro or meso
             if(urlType === "MV"){
-              // for middle, change type => segment and check input
+              // for meso, change type => segment and check input
               config.setGraphDataType("segment");
               d3.selectAll('input[name="chartDataRadio"][value="segment"]')
                 .property("checked", true);
             }
             // set config
-            config.setQuiltMiddleUrlExtras(parameters.split("_"));
+            config.setMacroMesoUrlExtras(parameters.split("_"));
           } else {
-            config.setQuiltMiddleUrlExtras([]);
+            config.setMacroMesoUrlExtras([]);
           }
         }
       });
@@ -356,8 +356,8 @@ async function getData() {
         return acc;
       },{}));
 
-      config.setExpandedQuiltMiddleNodes([]);
-      config.setQuiltMiddleUrlExtras([]);
+      config.setExpandedMacroMesoNodes([]);
+      config.setMacroMesoUrlExtras([]);
 
       handleUrlInputs();
       // copy hierarchy data
