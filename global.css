@@ -548,31 +548,31 @@ input[type="range"] {
 }
 
 .nodes-pulse .node:nth-child(1) {
-    background-color: #418BFC;
+    background-color:  #418BFC;
     top: 20px;
     left: 70px;
     animation-delay: 0s;
 }
 .nodes-pulse .node:nth-child(2) {
-    background-color: #46BCC8;
+    background-color:  #46BCC8;
     top: 70px;
     left: 40px;
     animation-delay: 0.3s;
 }
 .nodes-pulse .node:nth-child(3) {
-    background-color: #EB5E68;
+    background-color: #D6AB1B;
     top: 50px;
     right: 50px;
     animation-delay: 0.6s;
 }
 .nodes-pulse .node:nth-child(4) {
-    background-color: #BA6DE4;
+    background-color: #EB5E68;
     bottom: 30px;
     left: 100px;
     animation-delay: 0.9s;
 }
 .nodes-pulse .node:nth-child(5) {
-    background-color: #D6AB1B;
+    background-color: #B6BE1C;
     bottom: 60px;
     right: 70px;
     animation-delay: 1.2s;

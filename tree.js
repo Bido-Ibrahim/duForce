@@ -307,13 +307,16 @@ export default function VariableTree(data) {
       d3.select("#nnDegreeDiv").style("display","none");
       d3.select("#search-input").property("value","");
       d3.select("#infoMessage").text("");
+      d3.select('#search-container-sp-end').style("display","none");
+      d3.select("#hide-single-button").style("display","block");
+      d3.selectAll("#search-input").attr("placeholder","Search for variables");
       history.replaceState(null, '', window.location.href.split("?")[0]);
       config.setGraphDataType(event.currentTarget.value);
       config.setNearestNeighbourOrigin("");
       config.setTooltipRadio("none");
       config.setCurrentLayout("default");
-      config.setExpandedQuiltMiddleNodes([]);
-      config.setQuiltMiddleUrlExtras([]);
+      config.setExpandedMacroMesoNodes([]);
+      config.setMacroMesoUrlExtras([]);
       const getSelectedNames = () => {
         if(config.graphDataType === "parameter") return selectedNodeNamesCopy;
         if(config.graphDataType === "submodule") return config.hierarchyData.subModuleNames;

@@ -3,14 +3,14 @@
 ### Setup
 
 1. If there is a database file (IFsVar.db), place it at the root folder. Run a Node script to parse the database file contents, convert them into individual JSON files and save them locally in the 'assets' folder. Nodes dataset is called 'nodes.json' and edges dataset is called 'edges.json'.
-
+   (BM - have not tested this as out of my remit!)
 ```
 node ./scripts/parse-db.js
 ```
 
 2. If the Node script above is not run, ensure required data in correct JSON format is stored in 'assets' folder. 
 
-
+(it currently is)
 3. Open a new terminal tab. Install the dependencies
 
 ```
@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-5. View the app on `http://localhost:5174/`
+5. View the app on `http://localhost:5173/duForce`
 
 
 ### Deployment
@@ -33,7 +33,9 @@ npm run dev
 npm run build
 ```
 
-2. The build will be stored in 'dist' folder, which can then be uploaded into any development playform offering deployment services such as Netlify. Optional: You may view the build locally by running the server. 
+ADD HERE RE: pushing to main and Github Pages
+
+2. The build will be stored in 'dist' folder, which can then be uploaded into any development platform offering deployment services such as Netlify. Optional: You may view the build locally by running the server. 
 
 ```
 node server.js

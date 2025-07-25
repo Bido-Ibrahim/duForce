@@ -12,7 +12,7 @@ export const config = {
   showSingleNodes: true,
   // graph data set on initial load
   allNodeNames: [],
-  expandedQuiltMiddleNodes: [],
+  expandedMacroMesoNodes: [],
   hierarchyData: {},
   subModules: [],
   parameterData: {},
@@ -28,7 +28,7 @@ export const config = {
   notDefaultSelectedNodeNames: [],
   notDefaultSelectedLinks: [],
   tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
-  quiltMiddleUrlExtras: [],
+  macroMesoUrlExtras: [],
   nnUrlView: false,
 
   setNNUrlView(newBoolean) {
@@ -39,18 +39,18 @@ export const config = {
     }
   },
 
-  setQuiltMiddleUrlExtras(newArray) {
+  setMacroMesoUrlExtras(newArray) {
     if (typeof newArray === "object") {
-      this.quiltMiddleUrlExtras = newArray;
+      this.macroMesoUrlExtras = newArray;
     } else {
-      console.error("Expected an string for setQuiltMiddleUrlExtras.");
+      console.error("Expected an string for setMacroMesoUrlExtras.");
     }
   },
-  setExpandedQuiltMiddleNodes(newArray) {
+  setExpandedMacroMesoNodes(newArray) {
     if (typeof newArray === "object") {
-      this.expandedQuiltMiddleNodes = newArray;
+      this.expandedMacroMesoNodes = newArray;
     } else {
-      console.error("Expected an object for expandedQuiltMiddleNodes.");
+      console.error("Expected an object for expandedMacroMesoNodes.");
     }
   },
   setTooltipRadio(newString) {

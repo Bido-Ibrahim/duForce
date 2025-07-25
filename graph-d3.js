@@ -3,16 +3,15 @@ import Graph from "graphology";
 import Fuse from 'fuse.js'
 import { config } from "./config";
 import { drawTree, getColorScale, remToPx } from "./tree";
-import { MESSAGES, NODE_RADIUS_RANGE, TICK_TIME, TOOLTIP_KEYS } from "./constants";
+import {  LINK_COLOR, MESSAGES, NODE_RADIUS_RANGE, TICK_TIME, TOOLTIP_KEYS } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
 
 const resetMenuVisibility = (width) => {
   // called initially and after every layout change (parameter only)
   const hideInfoHidden = d3.select("#hideInfo").classed("hidden");
-
   d3.select("#infoMessage").style("visibility",config.graphDataType !== "parameter" || config.currentLayout === "default" ? "hidden" : "visible");
-  d3.select("#unselectAll").style("opacity", config.graphDataType === "parameter" && !hideInfoHidden ? 1 : 0);
+  d3.select("#unselectAll").style("opacity", config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin === "" && !hideInfoHidden ? 1 : 0);
   d3.select("#tooltipCount").text("");
   d3.select("#layout-button").style("display", config.graphDataType === "parameter" ? "block" : "none");
   d3.select("#tabbed-component")
@@ -51,7 +50,6 @@ export default async function ForceGraph(
   } = {}
 ) {
   if (!nodes) return;
-  console.log('drawing chart')
   resetMenuVisibility(width);
   let expandedAll = config.graphDataType !== "parameter" || nodes.length === config.selectedNodeNames.length;
   // data for charts
@@ -111,9 +109,9 @@ export default async function ForceGraph(
   // graphology component (used for NN and SP)
   const graph = initGraphologyGraph(showEle.nodes, showEle.links);
 
-  const getQuiltMiddleDepthMultiple = (type) => {
+  const getMacroMesoDepthMultiple = (type) => {
     if(config.graphDataType === "submodule") return type === "tier1" ? 8 : type === "tier2" ? 6 : 2
-    if(config.graphDataType === "segment") return type === "tier1" ? 5 : type === "tier2" ? 5 : 1.2;
+    if(config.graphDataType === "segment") return type === "tier1" ? 9 : type === "tier2" ? 6 : 1.5;
   };
   // Initialize simulation
   const simulation = d3
@@ -127,7 +125,7 @@ export default async function ForceGraph(
     .force("x", d3.forceX((d) => d.x ? d.x : 0).strength(config.graphDataType === "parameter" ? 0.1 : 0.2))
     .force("y", d3.forceY((d) => d.y ? d.y : 0).strength(config.graphDataType === "parameter" ? 0.1 : 0.2))
     .force("collide", d3.forceCollide() // change segment when ready
-      .radius((d) => config.graphDataType !== "parameter" ? d.radius * getQuiltMiddleDepthMultiple(d.type) : d.radius)
+      .radius((d) => config.graphDataType !== "parameter" ? d.radius * getMacroMesoDepthMultiple(d.type) : d.radius)
       .strength(0.4)
       .iterations(4)
     ) // change segment when ready
@@ -147,13 +145,13 @@ export default async function ForceGraph(
   svg.select(".markerGroupStart")
     .attr("id", "arrowPathStart")
     .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 4)
-    .attr("markerWidth", 12.5)
-    .attr("markerHeight", 12.5)
+    .attr("refX", 3)
+    .attr("markerWidth", 10)
+    .attr("markerHeight", 10)
     .attr("orient", "auto");
 
   svg.select(".markerPathStart")
-   .attr("fill", "#606060")
+   .attr("fill", LINK_COLOR)
     .attr("stroke-linecap", "round")
     .attr("stroke-linejoin", "round")
     .attr("d", "M9,-4L1,0L9,4") // M9,-4L1,0L9,4 (start)
@@ -161,13 +159,13 @@ export default async function ForceGraph(
   svg.select(".markerGroupEnd")
     .attr("id", "arrowPathEnd")
     .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 8.25)
-    .attr("markerWidth", 12.5)
-    .attr("markerHeight", 12.5)
+    .attr("refX", 7)
+    .attr("markerWidth", 10)
+    .attr("markerHeight", 10)
     .attr("orient", "auto");
 
   svg.select(".markerPathEnd")
-    .attr("fill", "#606060")
+    .attr("fill", LINK_COLOR)
     .attr("stroke-linecap", "round")
     .attr("stroke-linejoin", "round")
     .attr("d", "M1, -4L9,0L1,4") // M9,-4L1,0L9,4 (start)
@@ -318,7 +316,7 @@ export default async function ForceGraph(
   // updateButtons
   updateButtons(graph);
 
-  // used to generate URL string - NN, SP, Quilt
+  // used to generate URL string - NN, SP, Macro
   function getUrlId (str)  {
     const hasCapital  = /[A-Z]/.test(str);
     return hasCapital ? `~${str}` : str;
@@ -618,14 +616,14 @@ export default async function ForceGraph(
     if(origin === "search" && config.graphDataType !== "parameter"){
       showEle.nodes.map((m) => m.clicked = false);
       const matchingNode = config.parameterData.nodes.find((f) => f.NAME === nodeName);
-      if(!config.expandedQuiltMiddleNodes.some((s) => s === matchingNode.subModule)){
-        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(matchingNode.subModule));
+      if(!config.expandedMacroMesoNodes.some((s) => s === matchingNode.subModule)){
+        config.setMacroMesoUrlExtras(config.macroMesoUrlExtras.concat(matchingNode.subModule));
       }
-      if(!config.expandedQuiltMiddleNodes.some((s) => s === matchingNode.segment)){
-        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(matchingNode.segment));
+      if(!config.expandedMacroMesoNodes.some((s) => s === matchingNode.segment)){
+        config.setMacroMesoUrlExtras(config.macroMesoUrlExtras.concat(matchingNode.segment));
       }
-      if(!config.expandedQuiltMiddleNodes.some((s) => s === nodeName)){
-        config.setQuiltMiddleUrlExtras(config.quiltMiddleUrlExtras.concat(nodeName));
+      if(!config.expandedMacroMesoNodes.some((s) => s === nodeName)){
+        config.setMacroMesoUrlExtras(config.macroMesoUrlExtras.concat(nodeName));
       }
       updatePositions(true);
     } else if(origin === "search" && config.currentLayout === "nearestNeighbour"){
@@ -691,10 +689,7 @@ export default async function ForceGraph(
         chartNodes = [];
       }
     }
-    // filter out single if requested
-    if(!config.showSingleNodes && config.currentLayout === "default"){
-      chartNodes = chartNodes.filter((f) => f.radiusVar > 0);
-    }
+
     if(config.tooltipRadio !== "none"  && config.nearestNeighbourOrigin !== ""){
       // for NN searches (default + nearestNeighbour layout) radio appears @ top of tooltip
       // apply filters if needed
@@ -731,7 +726,7 @@ export default async function ForceGraph(
     }
 
     if(config.graphDataType !== "parameter"){
-      // different behaviour for submodule/segment ie quilt/middle
+      // different behaviour for submodule/segment ie macro/meso
       const reRunSimulation = () => {
         chartNodes = showEle.nodes;
         // find links for all visible nodes
@@ -760,7 +755,7 @@ export default async function ForceGraph(
         })
         // reset urlString if needed
         let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
-        config.expandedQuiltMiddleNodes.forEach((nodeId) => {
+        config.expandedMacroMesoNodes.forEach((nodeId) => {
           urlString += `${getUrlId(nodeId)}_`
         })
         if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
@@ -775,37 +770,37 @@ export default async function ForceGraph(
       // initial re-run
       reRunSimulation();
       const {segmentNames, subModuleNames, subModuleNodes} = config.hierarchyData;
-      // next section will only apply if quiltMiddleUrlExtras (populated on load in main.js) has entries
+      // next section will only apply if macroMesoUrlExtras (populated on load in main.js) has entries
       // for each entry a simulation re-run is performed - seems illogical but this feature was
       // added at the end of dev and the key thing here is to make sure node positions are maintained
       // within submodule + segment groups and don't overlap
 
       // find submodules
-      const expandedSubmodules = config.quiltMiddleUrlExtras.filter((f) => subModuleNames.includes(f));
+      const expandedSubmodules = config.macroMesoUrlExtras.filter((f) => subModuleNames.includes(f));
       // for each submodule
       expandedSubmodules.forEach((submodule) => {
         // fetch node from data
         const submoduleNode = subModuleNodes.find((f) => f.id === submodule);
         if(submoduleNode){
           // simulate a click and re-run simulation
-          clickQuiltMiddle(submoduleNode);
+          clickMacroMeso(submoduleNode);
           reRunSimulation();
         }
       })
       // find segments
-      const expandedSegments = config.quiltMiddleUrlExtras.filter((f) => segmentNames.includes(f));
+      const expandedSegments = config.macroMesoUrlExtras.filter((f) => segmentNames.includes(f));
       expandedSegments.forEach((segment) => {
         // for each segment
         // fetch submodule from current simulation (for position)
         const segmentNode = showEle.nodes.find((f) => f.id === segment);
         if(segmentNode){
           // simulate a click and re-run simulation
-          clickQuiltMiddle(segmentNode);
+          clickMacroMeso(segmentNode);
           reRunSimulation();
         }
       })
       // as well as expanded submodules/segments one parameter at a time can be highlighted and populate url
-      let parameterClickId = config.quiltMiddleUrlExtras.find((f) => !subModuleNames.includes(f) && !segmentNames.includes(f));
+      let parameterClickId = config.macroMesoUrlExtras.find((f) => !subModuleNames.includes(f) && !segmentNames.includes(f));
       if(parameterClickId){
         // convert to valid id
         parameterClickId = parameterClickId.replace(/~/g,'');
@@ -817,9 +812,21 @@ export default async function ForceGraph(
           history.replaceState(null, '', urlString);
         }
       }
-      // after all that, reset setQuildMiddleUrlExtras
-      config.setQuiltMiddleUrlExtras([]);
-      d3.select("#resetButton").text(config.expandedQuiltMiddleNodes.length > 0 ? "Reset" : "")
+      // after all that, reset setQuildMesoUrlExtras
+      config.setMacroMesoUrlExtras([]);
+      d3.select("#resetButton").text(config.expandedMacroMesoNodes.length > 0 ? "Reset" : "")
+
+    }
+
+    // filter out single if requested
+    if(!config.showSingleNodes && config.currentLayout === "default"){
+      if(config.graphDataType === "parameter"){
+        chartNodes = chartNodes.filter((f) => f.radiusVar > 0);
+      } else {
+        // macro or meso
+        chartNodes = chartNodes.filter((f) => f.type !== "tier3" || (f.type === "tier3" && chartLinks.some((s) =>
+        getSourceId(s) === f.id || getTargetId(s) === f.id)))
+      }
 
     }
 
@@ -877,8 +884,8 @@ export default async function ForceGraph(
       .select(".linkPath")
       .attr("pointer-events", "none")
       .attr("stroke-opacity", (d) => getLinkAlpha(d,chartLinks.length))
-      .attr("stroke-width", 0.5)
-      .attr("stroke", "#A0A0A0")
+      .attr("stroke-width", 0.75)
+      .attr("stroke", LINK_COLOR)
       .attr("fill","none");
 
     // adding arrows after link and standard link are rendered
@@ -926,8 +933,8 @@ export default async function ForceGraph(
         .attr("d", getLinkPath);
     }
 
-    function quiltOrMiddleHighlight  (d)  {
-      // highlight adjoining links and nodes when in config.graphDataType === "submodule" (Quilt) or "segment" (middle)
+    function macroOrMesoHighlight  (d)  {
+      // highlight adjoining links and nodes when in config.graphDataType === "submodule" (Macro) or "segment" (meso)
       const currentNodeId = d.id;
 
       // tone down links, nodes and remove paths
@@ -959,7 +966,7 @@ export default async function ForceGraph(
       svg.selectAll(".nodeLabel").style("display", getNodeLabelDisplay);
       // reset nodes and links after a mouseout
       svg.selectAll(".nodeCircle")
-        .attr("stroke-width",  0)
+        .attr("stroke-width", (d) =>   getNodeStrokeElements("width",d))
         .attr("opacity",(d) =>
           config.graphDataType !== "parameter" || config.currentLayout !== "default" ? 1 :
             config.selectedNodeNames.includes(d.id) ? 1 : 0.2);
@@ -980,8 +987,8 @@ export default async function ForceGraph(
       return defaultValue;
     }
 
-    function getNewQuiltMiddleNode (nodeId, x,y, type)  {
-        // used when resetting from URL click and in clickQuiltMiddle
+    function getNewMacroMesoNode (nodeId, x,y, type)  {
+        // used when resetting from URL click and in clickMacroMeso
         const descendant = config.expandedTreeData.descendants().find((f) => f.data.id === nodeId);
         return {
           id: descendant.data.id,
@@ -1003,14 +1010,14 @@ export default async function ForceGraph(
           y
         };
     }
-    function clickQuiltMiddle (d) {
+    function clickMacroMeso (d) {
       if((d.children) && d.type !== "tier3"){
         const childIds = d.children.length === 0 ? [] : typeof d.children[0] !== "object" ? d.children : d.children.map((m) => m.data.id);
         childIds.forEach((child) => {
           const newType = d.type === "tier1" ? "tier2" : "tier3";
-          showEle.nodes.push(getNewQuiltMiddleNode(child, d.x, d.y, newType));
+          showEle.nodes.push(getNewMacroMesoNode(child, d.x, d.y, newType));
         })
-        config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.concat(d.id));
+        config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id));
         showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
       }
       showEle.nodes.map((m) => {
@@ -1048,7 +1055,7 @@ export default async function ForceGraph(
           d3.select(event.currentTarget).select(".nodeCircle").attr("stroke-width",  1);
           if(!showEle.nodes.find((f) => f.clicked)){
             // highlighted if nothing clicked
-            quiltOrMiddleHighlight(d);
+            macroOrMesoHighlight(d);
           }
           // update tooltip
           let tooltipNode = config.parameterData.nodes.find((f) => f.id === d.id);
@@ -1106,6 +1113,7 @@ export default async function ForceGraph(
           // default click (NN 1 search but staying in this layout)
           d3.select(event.currentTarget).raise();
           config.setNearestNeighbourDegree(1);
+          d3.select("#unselectAll").style("opacity",0);
           clickNode(d.NAME, "node", graph)
         }
         // do nothing on click if NN or SP layout
@@ -1117,20 +1125,20 @@ export default async function ForceGraph(
             // if no shift/alt/command
             if(d.children && d.type !== "tier3"){
               // for tier1 + tier2 nodes - EXPAND
-              clickQuiltMiddle(d);
+              clickMacroMeso(d);
               updatePositions(true);
             } else {
               // for tier3 nodes
               if(d.clicked){
-                // if clicked - reset so not clicked and remove from expandedQuiltMiddleNodes list
+                // if clicked - reset so not clicked and remove from expandedMacroMesoNodes list
                 d.clicked = false;
-                config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !==d.id))
+                config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.filter((f) => f !==d.id))
               } else {
-                // if not clicked - highlight, show label, click, add to expandedQuiltMiddleNodes list + Url string
-                quiltOrMiddleHighlight(d);
+                // if not clicked - highlight, show label, click, add to expandedMacroMesoNodes list + Url string
+                macroOrMesoHighlight(d);
                 d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
                 d.clicked = true;
-                config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.concat(d.id))
+                config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id))
                 let urlString = `${window.location.href}_${getUrlId(d.id)}`;
                 history.replaceState(null, '', urlString);
               }
@@ -1140,16 +1148,16 @@ export default async function ForceGraph(
             //delete all depth 2 with my parent
             showEle.nodes = showEle.nodes.filter((f) => (f.parent?.id || f.parent) !== d.parent);
             // add parent if depth 1 = delete all
-            showEle.nodes.push(getNewQuiltMiddleNode(d.parent, d.x, d.y, "tier2"));
-            config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.parent));
+            showEle.nodes.push(getNewMacroMesoNode(d.parent, d.x, d.y, "tier2"));
+            config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.filter((f) => f !== d.parent));
             updatePositions(true);
           } else if (d.type === "tier2") {
             // shift/alt/command click + tier 2
             // delete all with matching subModule
             showEle.nodes = showEle.nodes.filter((f) => f.subModule !== d.subModule);
             // add submodule parent
-            showEle.nodes.push(getNewQuiltMiddleNode(d.subModule, d.x, d.y, "tier1"));
-            config.setExpandedQuiltMiddleNodes(config.expandedQuiltMiddleNodes.filter((f) => f !== d.subModule));
+            showEle.nodes.push(getNewMacroMesoNode(d.subModule, d.x, d.y, "tier1"));
+            config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.filter((f) => f !== d.subModule));
             updatePositions(true);
           }
           // can't do collapse tier1 (or submodule) nodes
@@ -1164,7 +1172,7 @@ export default async function ForceGraph(
       .attr("fill", (d) => d.color)
       .attr("stroke", "white")
       .attr("stroke-width", 0)
-      .attr("stroke-opacity", (d) => getNodeStrokeElements("opacity",d))
+      .attr("stroke-opacity", 0.7)
 
     nodesGroup
       .select(".nodeCircle")
@@ -1248,7 +1256,7 @@ export default async function ForceGraph(
     if(showEle.nodes.some((s) => s.clicked)){
       // for url retrieval, checking if clicked and changing appearance after all nodes have rendered
       const clickedNode = showEle.nodes.find((s) => s.clicked);
-      quiltOrMiddleHighlight(clickedNode);
+      macroOrMesoHighlight(clickedNode);
       setTimeout(() => {
         svg.selectAll(".nodeLabel").style("display", (l) => l.id === clickedNode.id ? "block" : getNodeLabelDisplay(l))
       },0)
@@ -1260,7 +1268,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 5 : 2);
+      let k = nodeRadiusScale(d.radiusVar) ** (config.graphDataType === "segment" && d.type === "tier3" ? 2 : 2);
       x += d.x * k
       y += d.y * k;
       z += k;
@@ -1289,7 +1297,7 @@ export default async function ForceGraph(
     return force;
   }
 
-  const getTooltipTable = (listToShow, nodeTableMapper) => {
+  function getTooltipTable (listToShow, nodeTableMapper) {
     let content = [];
     if(listToShow.length > 0){
       if(!listToShow.some((s) => s.direction === undefined) && config.currentLayout === "default"){
@@ -1361,7 +1369,7 @@ export default async function ForceGraph(
       content.map((d) => (contentStr += d));
     } else if (!expandedAll || (config.currentLayout !== "default" && config.graphDataType === "parameter")) {
       let content = getTooltipTable(listToShow, nodeTableMapper);
-      contentStr = content.join("");
+      contentStr = !content || !content.length ? "" : content.join("");
     }
 
     let tooltipVisibility = "visible";
@@ -1478,11 +1486,17 @@ export default async function ForceGraph(
       history.replaceState(null, '', window.location.href.split("?")[0]);
     }
     if(config.currentLayout === "default"){
+      if(config.shortestPathStart === "" || config.shortestPathEnd === ""){
+        config.setSelectedNodeNames([]);
+      }
       config.setShortestPathStart("");
       config.setShortestPathEnd("");
       if(config.nearestNeighbourOrigin !== "" && config.nearestNeighbourDegree > 1){
-        config.nearestNeighbourDegree = 1;
-        config.nearestNeighbourOrigin = "";
+        // resets when degree as been toggled above 1
+        config.setNearestNeighbourOrigin("");
+        config.setNearestNeighbourDegree(1);
+        history.replaceState(null, '', window.location.href.split("?")[0]);
+        document.getElementById("nnDegree").value = 1;
       }
       d3.select("#showInfo").classed("hidden",window.innerWidth >= 1000);
       d3.select("#hideInfo").classed("hidden",window.innerWidth < 1000);
@@ -1490,7 +1504,7 @@ export default async function ForceGraph(
       d3.selectAll("#search-input").attr("placeholder","Search for variables");
       d3.select("#hide-single-button").style("display","block");
       d3.select('#search-container-sp-end').style("display","none");
-      if(config.selectedNodeNames.length === 0){
+      if(config.selectedNodeNames.length === 0 ){
         config.setSelectedNodeNames(config.allNodeNames);
         config.setNotDefaultSelectedNodeNames([]);
         config.setNotDefaultSelectedLinks([]);
@@ -1580,9 +1594,11 @@ export default async function ForceGraph(
         tooltipExtra.style("visibility","hidden");
       })
       .on("click", () => {
-        config.selectedNodeNames = [];
+        config.setSelectedNodeNames([]);
         resetMenuVisibility(width);
+        unselectButton.style("opacity",0);
         updatePositions(false);
+
       })
 
     const resetButtons = d3.selectAll(".resetButton");
@@ -1614,6 +1630,7 @@ export default async function ForceGraph(
         d3.select("#search-input").property("value","");
         d3.select("#search-input-sp-end").property("value","");
         d3.select("#infoMessage").text(message).style("visibility","visible");
+        resetMenuVisibility(width);
         updatePositions(true);
       })
 
@@ -1745,7 +1762,7 @@ export default async function ForceGraph(
   }
   function updateSearch(variableData, graph, extraIdString) {
 
-    const searchInput = document.getElementById(`search-input${extraIdString}`);
+    const searchInput = d3.select(`#search-input${extraIdString}`);
     const suggestionsContainer = document.getElementById(`suggestions-container${extraIdString}`);
 
     // Function to filter suggestions based on user input
@@ -1766,15 +1783,20 @@ export default async function ForceGraph(
 
     // Function to update the suggestions dropdown
     const updateSuggestions = (input) => {
+
       const filteredSuggestions = filterSuggestions(input);
       suggestionsContainer.innerHTML = "";
+      console.log('updating')
+      // cheat as only just realised the old code was creating a suggestion each time - bad practice!
+      d3.selectAll(".suggestion").remove();
 
       filteredSuggestions.forEach((item) => {
         const suggestionElement = document.createElement("div");
         suggestionElement.classList.add("suggestion");
         suggestionElement.textContent = item.DEFINITION ? `${item.NAME} - ${item.DEFINITION}` : item.NAME;
         suggestionElement.addEventListener("click", () => {
-          searchInput.value = item.NAME;
+
+          searchInput.node().value = item.NAME;
           suggestionsContainer.style.display = "none";
           if (showEle.nodes.find((n) => n.NAME === item.NAME) || config.graphDataType !== "parameter") {
               clickNode(item.NAME, `search${extraIdString}`, graph);
@@ -1793,6 +1815,7 @@ export default async function ForceGraph(
         suggestionsContainer.style.display = "block";
         if(config.graphDataType !== "parameter"){
           showEle.nodes.map((m) => m.clicked = false);
+          config.setShowSingleNodes(true);
           svg.selectAll(".nodesGroup").attr("opacity",1);
            updatePositions(true);
         }
@@ -1802,9 +1825,10 @@ export default async function ForceGraph(
     }
 
     // Event listener for input changes
-    searchInput.addEventListener("input", () => {
-      simulation.alpha(0);
-      const inputValue = searchInput.value;
+    searchInput.on("input", () => {
+      simulation.stop();
+
+      const inputValue = searchInput.node().value;
       updateSuggestions(inputValue);
 
     });
