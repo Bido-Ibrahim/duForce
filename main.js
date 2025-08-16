@@ -139,9 +139,18 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
   const getOppositeIds = (leaves) => {
     const parameterSet = leaves.map((m) => m.data.id);
     // filter links to nodes which aren't this submodule
-    const matchingLinks = resultEdges.filter((f) => parameterSet.includes(f.source) || parameterSet.includes(f.target)
-      && !(parameterSet.includes(f.source) && parameterSet.includes(f.target)))
-      .map((m) => m = {id: parameterSet.includes(m.source) ? m.target : m.source, direction: m.direction});
+    const matchingLinks = resultEdges.filter((f) => parameterSet.includes(f.source) || parameterSet.includes(f.target))
+      .reduce((acc, entry) => {
+        if(parameterSet.includes(entry.source) && parameterSet.includes(entry.target)){
+           acc.push({ id: entry.source, direction: "both"});
+           acc.push({id: entry.target, direction: "both"})
+        } else if (parameterSet.includes(entry.source)){
+          acc.push({id: entry.target, direction: entry.direction})
+        } else {
+          acc.push({id: entry.source, direction: entry.direction})
+        }
+        return acc;
+      }, [])
     return [...new Set(matchingLinks.map((m) => m.id))]
       .map((m) => m = {id:m, direction: matchingLinks.some((s) => s.direction === "both") ? "both" : "out"});
 
@@ -193,10 +202,11 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
       } else if(m.depth === 2){
         m.data.parameterCount = m.children.length;
         segmentNames.add(m.data.id);
+
         const oppositeIdAndDirection = getOppositeIds(m.leaves());
         const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
-          .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && (s.segment === m.data.id || s.subModule === m.data.subModule)));
-        const oppositeNodes = getOppositeNodes(oppositeIds);
+        const oppositeNodes = getOppositeNodes(oppositeIds)
+          .filter((f) => f.segment !== m.id);
         const segmentGroup = Array.from(d3.group(oppositeNodes, (g) => g.segment));
         const segmentSet = segmentGroup.map((m) => m[0]);
         addToDirectionGroup(segmentGroup,oppositeIdAndDirection);
