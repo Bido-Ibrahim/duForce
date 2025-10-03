@@ -8,8 +8,8 @@ export const config = {
   nearestNeighbourDegree: 1,
   shortestPathStart: "",
   shortestPathEnd: "",
-  showArrows: true,
-  showSingleNodes: true,
+  shortestPathString: "",
+  showSingleNodes: false,
   // graph data set on initial load
   allNodeNames: [],
   expandedMacroMesoNodes: [],
@@ -30,6 +30,14 @@ export const config = {
   tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
   macroMesoUrlExtras: [],
   nnUrlView: false,
+
+  setShortestPathString(newString) {
+    if (typeof newString === "string") {
+      this.shortestPathString = newString;
+    } else {
+      console.error("Expected a string for shortestPathString.");
+    }
+  },
 
   setNNUrlView(newBoolean) {
     if (typeof newBoolean === "boolean") {
@@ -205,15 +213,6 @@ export const config = {
       this.showSingleNodes = value;
     } else {
       console.error("Expected a boolean for showSingleNodes.");
-    }
-  },
-
-  // Method to set the showSingle explicitly
-  setShowArrows(value) {
-    if (typeof value === 'boolean') {
-      this.showArrows = value;
-    } else {
-      console.error("Expected a boolean for showArrows.");
     }
   },
 

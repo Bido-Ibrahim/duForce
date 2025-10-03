@@ -293,7 +293,7 @@ const handleUrlInputs = () => {
             }
             // set config
             config.setMacroMesoUrlExtras(parameters.split("_"));
-          } else {
+          }  else {
             config.setMacroMesoUrlExtras([]);
           }
         }

@@ -26,6 +26,7 @@ export const gestalt = [
 ]
 
 export const LINK_COLOR = "#C0C0C0";
+export const LINK_ARROW_COLOR = "#737373";
 
 // previous palette plus grey
 // if you change the 1st 5 colours you'll also need to update .node:nth-child(1)-(5) in global.css (line 550-580)
@@ -43,12 +44,15 @@ export const COLOR_SCALE_RANGE = [
   "#C0C0C0"
 ];
 
+export const LINK_STRENGTH = 0.2;
+
 export const MESSAGES = {"noSP": "There is no shortest path between the selected nodes",
   "SP" : "Search for nodes to find the Shortest Path",
   "NN" : "Search for nodes to find the Nearest Neighbour",
 }
 export const TOOLTIP_KEYS = ['NAME',"DISPLAY NAME", "Parameter Explanation", "SUBMODULE_NAME", "SEGMENT_NAME"];
 
-export const NODE_RADIUS_RANGE = [6, 18];
+export const NODE_RADIUS_RANGE = [6, 40];
 
 export const TICK_TIME = Math.ceil(Math.log(0.001) / Math.log(1 - 0.0228)); // numbers are d3 defaults for alphMin and alphaDecay
+

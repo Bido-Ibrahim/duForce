@@ -79,6 +79,7 @@
         <input type="text" id="search-input" placeholder="Search for variables" />
         <div id="suggestions-container"></div>
       </div>
+        <p class="CTA">switch to <i class="fa-solid fa-arrow-up"></i><br>DEFAULT<br>to see results<br> on full graph</p>
       <div id="search-container-sp-end">
         <input type="text" id="search-input-sp-end" placeholder="Search for end node" />
         <p class="resetButton" id="refreshSP"><i class="fas fa-circle-xmark"></i></p>
@@ -90,9 +91,6 @@
         <p class="resetButton" id="refreshNN"><i class="fas fa-circle-xmark"></i></p>
       </div>
         <!-- toolbar buttons and dropdown -->
-      <button class="toolbar-button" id="show-arrows-button">
-        <i class="fas fa-arrows-to-eye"></i>
-      </button>
       <button class="toolbar-button" id="hide-single-button">
         <i class="fas fa-user-ninja"></i>
       </button>
@@ -108,19 +106,52 @@
       <!-- help, download, reset + show/view menu buttons -->
         <p class="otherButton" id="helpInfo"><i class="fa-solid fa-circle-info"></i></p>
         <p class="otherButton" id="downloadImage"><i class="fa-solid fa-circle-down"></i></p>
+      <p class="otherButton" id="downloadNNData"><i class="fa-solid fa-download"></i></p>
         <p  id="resetButton"></p>
 
         <p class="viewButton" id="showInfo">Show interactive menu</p>
         <p class="viewButton hidden" id="hideInfo">Hide interactive menu</p>
       <p  id="unselectAll">Unselect All</p>
       <!-- helpinfo panel, fixed bottom right above zoom buttons, only available on request -->
-      <div id="helpInformationPanel">
-        <p>Add your help information here.</p>
-        <h2>About International Futures (IFs) </h2>
-        <p>International Futures is an integrated assesement model developed and maintained by the Frederick S. Pardee Insitute for International Futures, founded by Dr. Barry B. Hughes with the financial support of Frederick S. Pardee. International Futures has been in active development since the late 1970s.</p>
-        <p>To explore the model please visit: <a href="https://www.ifs.du.edu/ifs/frm_MainMenu.aspx"> IFs Online</a></p>
-        <p>To read more about our history please visit: <a href="https://korbel.du.edu/pardee/content/pardee-history"> Pardee History </a></p>
+      <div id="helpModalOverlay"></div>
+      <div id="helpInformationPanel"></div>
+      <div id="infoButtonContainer">
+        <button id="infoCloseButton">x</button>
       </div>
+      <script>
+        const panel = document.getElementById('helpInformationPanel');
+        const overlay = document.getElementById('helpModalOverlay');
+        const buttonPanel = document.getElementById('infoButtonContainer');
+        const button = document.getElementById('infoCloseButton');
+
+        // Load infoPanel.html content on page load
+        fetch('infoPanel.html')
+          .then(response => {
+            if (!response.ok) throw new Error("Failed to load panel content");
+            return response.text();
+          })
+          .then(html => {
+            panel.innerHTML = html;
+          })
+          .catch(err => {
+            panel.innerHTML = "<p>Failed to load help content.</p>";
+            console.error(err);
+          });
+        function closeModal() {
+          panel.classList.remove('active');
+          overlay.classList.remove('active');
+          buttonPanel.classList.remove('active');
+        }
+
+        // Open modal (you can call this from a button or event)
+        // Example: openModal();
+
+        // Close modal on overlay click
+        overlay.addEventListener('click', closeModal);
+        button.addEventListener('click', closeModal);
+
+
+      </script>
       <!-- container far right -->
       <div id="tabbed-component">
         <div>
