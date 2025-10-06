@@ -9,9 +9,44 @@ const getGraphData = () => {
   if(config.graphDataType === "segment") return {nodes: config.hierarchyData["segmentNodes"], links: []};
   return {nodes: config.hierarchyData["subModuleNodes"],links: []};
 }
+
+const getSubModulePositions = (width, height) => {
+  const subModulesByLeaveCount = config.hierarchyData.subModuleNodes.reduce((acc, entry) => {
+    acc.push({
+      name: entry.id,
+      value: entry.leaves().length
+    })
+    return acc;
+  },[]);
+
+  const root = d3
+    .hierarchy({ name: "root", children: subModulesByLeaveCount })
+    .sum((s) => s.value);
+
+  const treemapLayout = d3.treemap()
+    .size([width, height])
+
+  treemapLayout(root);
+
+  // applying a basic jitter function so it doesn't appear totally aligned
+  const jitter = (value, amount = 50) => value + (Math.random() * 2 - 1) * amount;
+
+  const subModulePositions =  root.children.reduce((acc, entry,index) => {
+    acc.push({
+      name: entry.data.name,
+      x: jitter(entry.x0 + (entry.x1 - entry.x0)),
+      y: jitter(entry.y0 + (entry.y1 - entry.y0)),
+      fill: COLOR_SCALE_RANGE[index]
+    })
+    return acc;
+  },[]);
+
+  return subModulePositions;
+}
 export const renderGraph = (initial) => {
 
   const graphData = getGraphData();
+ const subModulePositions = getSubModulePositions(window.innerWidth, window.innerHeight)
   // Execute the function to generate a new network
   ForceGraph(
     graphData,
@@ -20,6 +55,7 @@ export const renderGraph = (initial) => {
       initial,
       width: window.innerWidth,
       height: window.innerHeight,
+      subModulePositions
     }
   );
 }
@@ -47,7 +83,7 @@ export const remToPx = (rem) =>{
 
 const marginTop = 0;
 const rowHeight = remToPx(1.7);
-const treeDivId = "view";
+const treeDivId = "collapsibleMenuDiv";
 // search-tab-container width is 18rem;
 let treeWidth = remToPx(18);
 
@@ -184,6 +220,7 @@ export const drawTree = () => {
         }
       }
       config.setCurrentTreeData(currentTreeData);
+      config.setShortestPathString("");
       drawTree();
       d3.select(".animation-container").style("display", "flex");
       setTimeout(() => {
@@ -231,6 +268,32 @@ const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
   };
 
   img.src = url;
+}
+
+function downloadCSV(data, filename = "data.csv") {
+  if (!Array.isArray(data) || data.length === 0) {
+    console.error("Invalid or empty data array.");
+    return;
+  }
+
+  const headers = Object.keys(data[0]);
+  const csvRows = [
+    headers.join(","), // header row
+    ...data.map(row =>
+      headers.map(field => JSON.stringify(row[field] ?? "")).join(",")
+    )
+  ];
+
+  const csvContent = csvRows.join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 // function called from main.js after initial render
@@ -298,20 +361,23 @@ export default function VariableTree(data) {
       saveSvgAsImage();
     })
 
+  // download image
+  d3.select("#downloadNNData")
+    .on("click", () => {
+      downloadCSV(config.notDefaultSelectedLinks,`NN_data_${config.nearestNeighbourOrigin}_degree${config.nearestNeighbourDegree}`);
+    })
+
   // chart data radio - parameter, submodule, segment
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
+      const currentLayout = event.currentTarget.value;
       d3.select(".animation-container").style("display", "flex");
       d3.select(".tooltip").style("visibility","hidden");
-      d3.select("#tooltipCount").text("");
-      d3.select("#nnDegreeDiv").style("display","none");
-      d3.select("#search-input").property("value","");
-      d3.select("#infoMessage").text("");
-      d3.select('#search-container-sp-end').style("display","none");
-      d3.select("#hide-single-button").style("display","block");
-      d3.selectAll("#search-input").attr("placeholder","Search for variables");
+       d3.select("#collapsibleMenuToggle")
+        .style("display",currentLayout === "parameter" ? "block" : "none");
+      config.setShortestPathString("");
       history.replaceState(null, '', window.location.href.split("?")[0]);
-      config.setGraphDataType(event.currentTarget.value);
+      config.setGraphDataType(currentLayout);
       config.setNearestNeighbourOrigin("");
       config.setTooltipRadio("none");
       config.setCurrentLayout("default");
