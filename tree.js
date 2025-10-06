@@ -44,7 +44,7 @@ const getSubModulePositions = (width, height) => {
   return subModulePositions;
 }
 export const renderGraph = (initial) => {
- console.log('rendering graph')
+
   const graphData = getGraphData();
  const subModulePositions = getSubModulePositions(window.innerWidth, window.innerHeight)
   // Execute the function to generate a new network
@@ -83,7 +83,7 @@ export const remToPx = (rem) =>{
 
 const marginTop = 0;
 const rowHeight = remToPx(1.7);
-const treeDivId = "view";
+const treeDivId = "collapsibleMenuDiv";
 // search-tab-container width is 18rem;
 let treeWidth = remToPx(18);
 
@@ -370,18 +370,14 @@ export default function VariableTree(data) {
   // chart data radio - parameter, submodule, segment
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
+      const currentLayout = event.currentTarget.value;
       d3.select(".animation-container").style("display", "flex");
       d3.select(".tooltip").style("visibility","hidden");
-      d3.select("#tooltipCount").text("");
-      d3.select("#nnDegreeDiv").style("display","none");
-      d3.select("#search-input").property("value","");
-      d3.select("#infoMessage").text("");
-      d3.select('#search-container-sp-end').style("display","none");
-      d3.select("#hide-single-button").style("display","block");
-      d3.selectAll("#search-input").attr("placeholder","Search for variables");
+       d3.select("#collapsibleMenuToggle")
+        .style("display",currentLayout === "parameter" ? "block" : "none");
       config.setShortestPathString("");
       history.replaceState(null, '', window.location.href.split("?")[0]);
-      config.setGraphDataType(event.currentTarget.value);
+      config.setGraphDataType(currentLayout);
       config.setNearestNeighbourOrigin("");
       config.setTooltipRadio("none");
       config.setCurrentLayout("default");

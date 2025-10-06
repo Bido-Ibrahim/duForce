@@ -3,6 +3,14 @@ html {
     font-size: 75%; /* 14.4px */
 }
 
+#showInfo {
+    display: block;
+}
+
+ #hideInfo{
+    display: none;
+}
+
 @media (min-width: 668px) {
     html {
         font-size: 80%; /* 16px */
@@ -20,6 +28,8 @@ html {
     html {
         font-size: 120%; /* 17.6px */
     }
+
+
 }
 /* shared colors */
 :root {
@@ -140,7 +150,7 @@ select {
 }
 
 /* search box and its contents */
-#search-container,#search-container-sp-end {
+#search-container,#shortestPathEndSearch {
     width: 13.5rem;
     height: 1.9rem;
     margin: 0.1rem;
@@ -151,7 +161,7 @@ select {
     top: 0.25rem;
     z-index: 160;
 }
-#search-container-sp-end{
+#shortestPathEndSearch{
     z-index: 70;
 }
 #search-input,#search-input-sp-end {
@@ -164,7 +174,7 @@ select {
     color: var(--text-color);
     font-size: 0.9rem;
 }
-#search-container-sp-end{
+#shortestPathEndSearch{
     display: none;
 }
 
@@ -213,7 +223,8 @@ select {
 }
 
 /* tabbed component */
-#tabbed-component {
+#collapsibleMenuContainer {
+    display: none;
     position: relative;
     background-color: transparent;
     border: 0px ;
@@ -223,7 +234,7 @@ select {
     z-index: 90;
 }
 /* chart component */
-#view {
+#collapsibleMenuDiv {
     position: relative;
     margin-top: 3.6rem;
     width: 100%;
@@ -296,6 +307,7 @@ input[type="range"] {
 
 /* reset button (default view only) */
 #resetButton{
+    display: none;
     position: absolute;
     top: 6.2rem;
     left: 5rem;
@@ -464,9 +476,11 @@ input[type="range"] {
     right: 0rem;
 }
 
+#collapsibleMenuToggle{
+    display: none;
+}
 /* show hide information panel toggle */
 #showInfo, #hideInfo {
-    opacity: 0;
     position: absolute;
     top: 3.1rem;
     right: 0.5rem;
@@ -476,8 +490,7 @@ input[type="range"] {
 }
 
 #unselectAll{
-    opacity: 0;
-    top: 5.8rem;
+    top: -1rem;
     right: 0.5rem;
     position: absolute;
     font-size: 0.7rem;
