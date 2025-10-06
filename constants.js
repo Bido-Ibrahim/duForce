@@ -44,7 +44,7 @@ export const COLOR_SCALE_RANGE = [
   "#C0C0C0"
 ];
 
-export const LINK_STRENGTH = 0;
+export const LINK_STRENGTH = 0.2;
 
 export const MESSAGES = {"noSP": "There is no shortest path between the selected nodes",
   "SP" : "Search for nodes to find the Shortest Path",
