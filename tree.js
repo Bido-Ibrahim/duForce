@@ -371,12 +371,20 @@ export default function VariableTree(data) {
   d3.selectAll(".chartDataRadio")
     .on("change", (event) =>  {
       const currentLayout = event.currentTarget.value;
+      const baseUrl = window.location.href.split("?")[0];
+      if(currentLayout === "segment"){
+        history.replaceState(null, '', `${baseUrl}\?view=meso`);
+      } else if (currentLayout === "parameter"){
+        history.replaceState(null, '', `${baseUrl}\?view=variable`);
+      } else {
+        history.replaceState(null, '', baseUrl);
+      }
       d3.select(".animation-container").style("display", "flex");
       d3.select(".tooltip").style("visibility","hidden");
        d3.select("#collapsibleMenuToggle")
         .style("display",currentLayout === "parameter" ? "block" : "none");
       config.setShortestPathString("");
-      history.replaceState(null, '', window.location.href.split("?")[0]);
+
       config.setGraphDataType(currentLayout);
       config.setNearestNeighbourOrigin("");
       config.setTooltipRadio("none");

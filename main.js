@@ -308,8 +308,10 @@ const handleUrlInputs = () => {
           }
         }
       });
-    const newUrl = window.location.origin + window.location.pathname;
-    history.replaceState(null, '', newUrl);
+    if(!window.location.href.includes("?view")){
+      const newUrl = window.location.origin + window.location.pathname;
+      history.replaceState(null, '', newUrl);
+    }
   }
 
 }

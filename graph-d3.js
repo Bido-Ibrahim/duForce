@@ -91,6 +91,7 @@ export default async function ForceGraph(
   } = {}
 ) {
   if (!nodes) return;
+  const windowBaseUrl = window.location.href.split("?")[0];
   resetMenuVisibility(width);
   let expandedAll = config.graphDataType !== "parameter" || nodes.length === config.selectedNodeNames.length;
   // data for charts
@@ -622,7 +623,7 @@ export default async function ForceGraph(
       // if from default view, set's selectedNodeNames
       config.setSelectedNodeNames(allNNNodes.map((m) => m.name));
     }
-    const nnUrl = `${window.location.href.split("?")[0]}?${config.currentLayout === "default" ? "NND" :"NNV"}=${getUrlId(config.nearestNeighbourOrigin)}:${config.nearestNeighbourDegree}`;
+    const nnUrl = `${windowBaseUrl}?${config.currentLayout === "default" ? "NND" :"NNV"}=${getUrlId(config.nearestNeighbourOrigin)}:${config.nearestNeighbourDegree}`;
     history.replaceState(null, '', nnUrl);
     resetMenuVisibility();
     updatePositions(true,nodeClick);
@@ -673,7 +674,7 @@ export default async function ForceGraph(
       config.setNotDefaultSelectedLinks(connectedLinks);
       config.setNotDefaultSelectedNodeNames(connectedChartNodes);
       config.setShortestPathString(`Shortest Path: ${config.shortestPathStart} -> ${config.shortestPathEnd}`)
-      const spUrl = `${window.location.href.split("?")[0]}?SP=${getUrlId(config.shortestPathStart)}:${getUrlId(config.shortestPathEnd)}`;
+      const spUrl = `${windowBaseUrl}?SP=${getUrlId(config.shortestPathStart)}:${getUrlId(config.shortestPathEnd)}`;
       history.replaceState(null, '', spUrl);
     } else {
       // no connections, clear data
@@ -681,7 +682,7 @@ export default async function ForceGraph(
       config.setNotDefaultSelectedLinks([]);
       config.setNotDefaultSelectedNodeNames([]);
       config.setShortestPathString("");
-      history.replaceState(null, '', window.location.href.split("?")[0]);
+      history.replaceState(null, '', windowBaseUrl);
     }
     resetMenuVisibility();
     updatePositions(true);
@@ -858,27 +859,32 @@ export default async function ForceGraph(
           m.fx = m.x;
           m.fy = m.y;
         })
+
         // reset urlString if needed
-        let urlString = `${window.location.href.split("?")[0]}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
+        let urlString = `${windowBaseUrl}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
         config.expandedMacroMesoNodes.forEach((nodeId) => {
           urlString += `${getUrlId(nodeId)}_`
         })
         let newUrlString = "";
-        if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
-          if(parameterString === ""){
-              newUrlString = `${urlString.substring(0, urlString.length - 1)}`
-          } else {
-            const urlStart = urlString.split("?")[0];
-            newUrlString = `${urlStart}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${parameterString}`
-          }
+        if(window.location.href.includes("?view")){
+          // don't change
         } else {
-          // clearing URL string if nothing expanded
-          newUrlString =  window.location.href.split("?")[0];
+          if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
+            if(parameterString === ""){
+              newUrlString = windowBaseUrl;
+            } else {
+              const urlStart = urlString.split("?")[0];
+              newUrlString = `${urlStart}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${parameterString}`
+            }
+          } else {
+            // clearing URL string if nothing expanded
+            newUrlString =  windowBaseUrl;
+          }
         }
         history.replaceState(null, '', newUrlString);
-        // stop simulation
-        simulation.stop();
       }
+      // stop simulation
+      simulation.stop();
       // initial re-run
       reRunSimulation();
       const {segmentNames, subModuleNames, subModuleNodes} = config.hierarchyData;
@@ -1282,8 +1288,7 @@ export default async function ForceGraph(
                 d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
                 d.clicked = true;
                 config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id))
-                const urlRoot = window.location.href.split("?")[0];
-                let urlString = `${urlRoot}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${getUrlId(d.id)}`;
+                let urlString = `${windowBaseUrl}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${getUrlId(d.id)}`;
                 history.replaceState(null, '', urlString);
               }
             }
@@ -1680,7 +1685,7 @@ export default async function ForceGraph(
     config.setTooltipRadio("none");
     if(!(config.currentLayout === "default" && config.nearestNeighbourOrigin !== "")){
       // clear url unless moving to default from NN with a current NN
-      history.replaceState(null, '', window.location.href.split("?")[0]);
+      history.replaceState(null, '', windowBaseUrl);
     }
     if(config.currentLayout === "default"){
       if(config.shortestPathStart === "" || config.shortestPathEnd === ""){
@@ -1692,7 +1697,7 @@ export default async function ForceGraph(
         // resets when degree as been toggled above 1
         config.setNearestNeighbourOrigin("");
         config.setNearestNeighbourDegree(1);
-        history.replaceState(null, '', window.location.href.split("?")[0]);
+        history.replaceState(null, '', windowBaseUrl);
         document.getElementById("nnDegree").value = 1;
       }
       d3.select('#shortestPathEndSearch').style("display","none");
