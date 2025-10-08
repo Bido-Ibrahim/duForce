@@ -293,6 +293,16 @@ const handleUrlInputs = () => {
             }
             // set config
             config.setMacroMesoUrlExtras(parameters.split("_"));
+          } else if (urlType === "view"){
+            if(parameters === "meso"){
+              config.graphDataType = "segment";
+              d3.selectAll('input[name="chartDataRadio"][value="segment"]')
+                .property("checked", true);
+            } else if (parameters === "variable"){
+              config.graphDataType = "parameter";
+              d3.selectAll('input[name="chartDataRadio"][value="parameter"]')
+                .property("checked", true);
+            }
           }  else {
             config.setMacroMesoUrlExtras([]);
           }
