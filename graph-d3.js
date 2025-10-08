@@ -863,12 +863,19 @@ export default async function ForceGraph(
         config.expandedMacroMesoNodes.forEach((nodeId) => {
           urlString += `${getUrlId(nodeId)}_`
         })
+        let newUrlString = "";
         if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
-          history.replaceState(null, '', `${urlString.substring(0,urlString.length-1)}${parameterString}`);
+          if(parameterString === ""){
+              newUrlString = `${urlString.substring(0, urlString.length - 1)}`
+          } else {
+            const urlStart = urlString.split("?")[0];
+            newUrlString = `${urlStart}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${parameterString}`
+          }
         } else {
           // clearing URL string if nothing expanded
-          history.replaceState(null, '', window.location.href.split("?")[0]);
+          newUrlString =  window.location.href.split("?")[0];
         }
+        history.replaceState(null, '', newUrlString);
         // stop simulation
         simulation.stop();
       }
@@ -1275,7 +1282,8 @@ export default async function ForceGraph(
                 d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
                 d.clicked = true;
                 config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id))
-                let urlString = `${window.location.href}_${getUrlId(d.id)}`;
+                const urlRoot = window.location.href.split("?")[0];
+                let urlString = `${urlRoot}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${getUrlId(d.id)}`;
                 history.replaceState(null, '', urlString);
               }
             }
