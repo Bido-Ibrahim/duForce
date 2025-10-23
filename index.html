@@ -12,7 +12,9 @@
   </head>
   <body>
     <!-- tooltipCount + info message (top left + middle if needed) -->
-    <div id="tooltipCount"></div>
+    <div id="tooltipCountDiv">
+      <p><span id="tooltipCount"></span><span id="downloadNNData"><i class="fa-solid fa-download"></i></span></p>
+    </div>
     <div id="infoMessage">There is no shortest path between the selected nodes</div>
     <!-- zoom button menu bottom left -->
     <div id="zoom-button-component">
@@ -63,6 +65,8 @@
         </div>
       </div>
     </div>
+    <div class="tooltip"></div>
+    <div class="tooltipExtra"></div>
     <!-- main app container -->
     <div id="app"></div>
     <!-- container far right -->
@@ -104,7 +108,7 @@
       <!-- help, download, reset + show/view menu buttons -->
         <p class="otherButton" id="helpInfo"><i class="fa-solid fa-circle-info"></i></p>
         <p class="otherButton" id="downloadImage"><i class="fa-solid fa-circle-down"></i></p>
-      <p class="otherButton" id="downloadNNData"><i class="fa-solid fa-download"></i></p>
+
         <p  id="resetButton">Reset</p>
 
         <div id="collapsibleMenuToggle">

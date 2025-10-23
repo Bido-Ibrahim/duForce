@@ -3,6 +3,7 @@ import {  COLOR_SCALE_RANGE } from "./constants";
 import { config } from "./config";
 import ForceGraph from "./graph-d3";
 
+const mainAppContainerSelector = "#app";
 // functions to render graph when ready (or after a collapsible tree change)
 const getGraphData = () => {
   if(config.graphDataType === "parameter") return config.parameterData;
@@ -51,7 +52,7 @@ export const renderGraph = (initial) => {
   ForceGraph(
     graphData,
     {
-      containerSelector: "#app",
+      containerSelector: mainAppContainerSelector,
       initial,
       width: window.innerWidth,
       height: window.innerHeight,
@@ -85,7 +86,7 @@ const marginTop = 0;
 const rowHeight = remToPx(1.7);
 const treeDivId = "collapsibleMenuDiv";
 // search-tab-container width is 18rem;
-let treeWidth = remToPx(18);
+let treeWidth = remToPx(17.5);
 
 // config.selectedNodeNames used by chart + list
 const getSelectedPath = (descendantNames) => {
@@ -107,9 +108,13 @@ export const drawTree = () => {
   const treeHeight = marginTop + (currentTreeData.descendants().length * rowHeight);
   svg.attr("height",treeHeight);
 
-  const chartData = currentTreeData.descendants()
+  let chartData = currentTreeData.descendants()
     .filter((f) => f.depth > 0)
     .sort((a,b) => d3.ascending(a.data.hOrderPosition, b.data.hOrderPosition));
+
+  if(!config.showSingleNodes){
+    chartData = chartData.filter((f) => !(f.data.type === "tier3" && f.data.linkCount === 0))
+  }
 
   const treeGroup = svg
     .selectAll(".treeGroup")
@@ -152,7 +157,35 @@ export const drawTree = () => {
     .attr("x",  (d) =>  iconWidthHeight + 5 + depthExtra(d.depth,15))
     .attr("y",   rowHeight/2)
     .attr("fill", (d) => colorScale(d.data.subModule))
-    .text((d) => `${d.data.NAME}`);
+    .text((d) => `${d.data.NAME}`)
+    .on("mouseover", (event,d) => {
+      if(d.data.type === "tier3"){
+        d3.selectAll(".treeLabel")
+          .attr("fill-opacity", (l) => l.data.NAME === d.data.NAME ? 0.7 : 1);
+      }
+    })
+    .on("mouseout",() => {
+      d3.selectAll(".treeLabel").attr("fill-opacity",  1);
+    })
+    .attr("cursor",(d) => d.data.type === "tier3" ? "pointer": "default")
+    .on("click", (event, d) => {
+      if(d.data.type === "tier3"){
+        config.setNearestNeighbourOrigin(d.data.NAME);
+        config.setTooltipRadio("none");
+        d3.select("#search-input").property("value",d.data.name);
+        config.setSelectedNodeNames(config.allNodeNames)
+        config.setNotDefaultSelectedLinks([]);
+        config.setNotDefaultSelectedNodeNames([]);
+        config.setShortestPathStart("");
+        config.setShortestPathEnd("");
+        config.setShortestPathString("");
+        d3.select(".animation-container").style("display", "flex");
+        setTimeout(() => {
+          renderGraph(false);
+        }, 0); // or 16 for ~1 frame delay at 60fps
+      }
+
+    });
 
   treeGroup.select(".verticalLine")
     .attr("x1", 0)
@@ -270,7 +303,7 @@ const saveSvgAsImage = (filename = 'image.png', type = 'image/png') => {
   img.src = url;
 }
 
-function downloadCSV(data, filename = "data.csv") {
+export function downloadCSV(data, filename = "data.csv") {
   if (!Array.isArray(data) || data.length === 0) {
     console.error("Invalid or empty data array.");
     return;
@@ -381,6 +414,7 @@ export default function VariableTree(data) {
       }
       d3.select(".animation-container").style("display", "flex");
       d3.select(".tooltip").style("visibility","hidden");
+      d3.selectAll("#search-input").property("value","");
        d3.select("#collapsibleMenuToggle")
         .style("display",currentLayout === "parameter" ? "block" : "none");
       config.setShortestPathString("");
@@ -449,8 +483,11 @@ export default function VariableTree(data) {
 // Your resize handler function
   function handleResize() {
     // redraw tree on resize so container size matches tree size
-    treeWidth = remToPx(18);
-    svg.attr("width", treeWidth)
+    treeWidth = remToPx(17.5);
+    svg.attr("width", treeWidth);
+    // resizing main svg (not re-rendering chart due to load/rendering time)
+    let mainAppSvg = d3.select(mainAppContainerSelector).select("svg");
+    mainAppSvg.attr("width", window.innerWidth).attr("height",window.innerHeight);
     drawTree();
   }
 
