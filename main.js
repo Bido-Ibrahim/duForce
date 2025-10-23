@@ -21,20 +21,10 @@ const generateParameterData = (dataNodes, dataLinks) => {
   const nodeIdVar = "NAME";
   const sourceIdVar = "UsesVariable";
   const targetIdVar = "Variable";
-  // add id, type and tier3 nodes to data nodes
-  const nodes = dataNodes.reduce((acc, node) => {
-    node.id = node[nodeIdVar];
-    node.type = "tier3";
-    node.subModule = `submodule-${node.SUBMODULE}`;
-    node.segment = `segment-${node.SEGMENT}`;
-    acc.push(node);
-    return acc;
-  }, [])
-
   // filtering out duplicate links and set direction to both if opposite
   const links = dataLinks.reduce((acc, link) =>  {
-    link.source = link[sourceIdVar];
-    link.target = link[targetIdVar];
+    link.source = link[sourceIdVar].replace(/ /g, "_");
+    link.target = link[targetIdVar].replace(/ /g, "_");
     link.direction = "out";
     // PRECAUTIONARY ACTION: REMOVE DUPLICATE LINKS and set direction
     if(!acc.some((s) => s.source === link.source && s.target === link.target)){
@@ -48,6 +38,20 @@ const generateParameterData = (dataNodes, dataLinks) => {
     }
     return acc;
   },[]);
+
+  // add id, type and tier3 nodes to data nodes
+  const nodes = dataNodes.reduce((acc, node) => {
+    node.id = node[nodeIdVar];
+    node.type = "tier3";
+    node.subModule = `submodule-${node.SUBMODULE}`;
+    node.segment = `segment-${node.SEGMENT}`;
+    const sourceLinks = links.filter((f) => f.source === node.id).length;
+    const targetLinks = links.filter((f) => f.target === node.id).length;
+    node.linkCount = sourceLinks + targetLinks;
+    acc.push(node);
+    return acc;
+  }, [])
+
 
   return {nodes, links};
 
@@ -114,13 +118,15 @@ const getHierarchy = (nodes) => {
       subModule: `submodule-${node.SUBMODULE}`,
       id: node.id,
       NAME: node.NAME,
-      type: "tier3"
+      type: "tier3",
+      linkCount: node.linkCount
     })
     return acc;
   },[])
 
   data = data.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
   const stratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(data);
+
 
   return d3
     .stratify()
@@ -330,6 +336,7 @@ async function getData() {
     console.log('Base URL:', import.meta.env.BASE_URL);
     console.log('Current URL:', window.location.href);
 
+
     //const [response1, response2] = await Promise.all([fetch("/api/nodes", params), fetch("/api/edges", params)]);
     const [response1, response2] = await Promise.all([fetch(`${import.meta.env.BASE_URL}assets/nodes.json`), fetch(`${import.meta.env.BASE_URL}assets/edges.json`)]);
 
@@ -341,18 +348,18 @@ async function getData() {
     const resultNodes = await response1.json();
     const resultEdges = await response2.json();
 
+
     if (resultNodes && resultEdges) {
       let resultNodesTrunc = resultNodes.map((d) => {
         return {
-          NAME: d.NAME,
+          NAME: d.NAME.replace(/ /g, "_"), // ensuring no spaces (removed in labels)
           DEFINITION: d.DEFINITION,
           SUBMODULE: d.SUBMODULE, // MUST BE A UNIQUE ID
           SUBMODULE_NAME: d["SUBMODULE NAME"], // PREFERABLY A UNIQUE LABEL
           SEGMENT: d.SEGMENT, // MUST BE A UNIQUE ID
           SEGMENT_NAME: d["SEGMENT NAME"], // PREFERABLY A UNIQUE LABEL
           UNITS: d.UNITS,
-          ReportValue: d.ReportValue,
-          ...d
+          "Parameter Explanation": d["Parameter Explanation"]
         };
       });
       resultNodesTrunc = dataNullValueCheck(resultNodesTrunc,"SUBMODULE");

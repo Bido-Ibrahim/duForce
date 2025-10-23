@@ -134,8 +134,8 @@ label {
     background-color: black;
     color: white;
     border: 0.075rem solid white;
-    z-index: 10;
-    pointer-events: auto;
+    z-index: 999999;
+    pointer-events:all;
 }
 /* parameter selection */
 select {
@@ -236,7 +236,7 @@ select {
 /* chart component */
 #collapsibleMenuDiv {
     position: relative;
-    margin-top: 3.6rem;
+    margin-top: 5.2rem;
     width: 100%;
     max-height: calc(100vh - 9.5rem);
     height: auto;
@@ -509,12 +509,16 @@ input[type="range"] {
     left: 1.45rem;
 }
 #downloadNNData {
-    left: 2.65rem;
+    cursor: pointer;
+    position: absolute;
+    left: 6.2rem;
+    top: 0.1rem;
     display: none;
+    font-size: 0.7rem;
 }
 
 
-#helpInfo, #downloadImage,#downloadNNData {
+#helpInfo, #downloadImage{
     position: absolute;
     top: 1.6rem;
     padding:  0.6rem 0px 0px 0.3rem;
