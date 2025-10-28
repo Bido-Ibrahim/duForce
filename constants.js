@@ -1,4 +1,4 @@
-
+import { config } from "./config";
 
 
 export const LINK_COLOR = "#C0C0C0";
@@ -17,7 +17,8 @@ export const COLOR_SCALE_RANGE = [
   "#BADA55"]
 
 // node size range - always on a continuous scale based on the # of connections
-export const NODE_RADIUS_RANGE = [1, 50];
+//export const NODE_RADIUS_RANGE = [1, 50];
+export const NODE_RADIUS_RANGE = [1,50];
 // keep them small for rendering (ie 1 to 50 is better than 15 to 100)
 // previous version (Sept 2025) was [6, 40];
 

@@ -1,4 +1,5 @@
 // config.js
+
 export const config = {
   // default settings
   currentLayout: "default", // 3 options - "default", "nearestNeighbour", "shortestPath"
@@ -31,6 +32,108 @@ export const config = {
   macroMesoUrlExtras: [],
   nnUrlView: false,
 
+  // temp config for constant testing
+  radiusMin: 1,
+  radiusMax: 50,
+  radiusCollideMultiplier: 2.5,
+  linkForceStrength: 0.5,
+  simulationTickTime: 300,
+  colorRange: [
+    "#0072B2",
+    "#D55E00",
+    "#009E73",
+    "#CC79A7",
+    "#56B4E9",
+    "#F0E442",
+    "#999999",
+    "#E69F00",
+    "#64C4CD",
+    "#6A0DAD",
+    "#BADA55"],
+  setRadiusMin(newNumber) {
+    if (typeof newNumber === "number") {
+      this.radiusMin = newNumber;
+    } else {
+      console.error("Expected an string for radiusMin.");
+    }
+  },
+  setRadiusMax(newNumber) {
+    if (typeof newNumber === "number") {
+      this.radiusMax = newNumber;
+    } else {
+      console.error("Expected an string for radiusMax.");
+    }
+  },
+  setRadiusCollideMultiplier(newNumber) {
+    if (typeof newNumber === "number") {
+      this.radiusCollideMultiplier = newNumber;
+    } else {
+      console.error("Expected an string for radiusCollideMultiplier.");
+    }
+  },
+  setLinkForceStrength(newNumber) {
+    if (typeof newNumber === "number") {
+      this.linkForceStrength = newNumber;
+    } else {
+      console.error("Expected an string for linkForceStrength.");
+    }
+  },
+  setSimulationTickTime(newNumber) {
+    if (typeof newNumber === "number") {
+      this.simulationTickTime = newNumber;
+    } else {
+      console.error("Expected an string for simulationTickTime.");
+    }
+  },
+  setColorRange(newString) {
+    if (typeof newString === "string") {
+      if(newString === "new palette"){
+        this.colorRange = [
+          "#0072B2",
+          "#D55E00",
+          "#009E73",
+          "#CC79A7",
+          "#56B4E9",
+          "#F0E442",
+          "#999999",
+          "#E69F00",
+          "#64C4CD",
+          "#6A0DAD",
+          "#BADA55"]
+        ;
+      } else  if (newString === "observable11"){
+        this.colorRange = [
+          "#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
+          "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab",
+          "#17becf"
+        ];
+      } else  if (newString === "tableau11"){
+        this.colorRange = ['#4E79A7', '#F28E2C', '#E15759', '#76B7B2', '#59A14F', '#EDC949', '#AF7AA1', '#FF9D9A', '#9C755F', '#BAB0AB', '#17BECF'];
+      } else  if (newString === "gestalt"){
+        this.colorRange = [
+          "#005FCB",
+          "#B190FF","#FDA600","#75BFFF","#DE2C62","#A4F9AC","#812AE7","#FF5B45","#007A72","#F76593","#FFC58F"
+
+        ];
+      } else  if (newString === "original palette"){
+        this.colorRange = [
+          "#418BFC",
+          "#46BCC8",
+          "#D6AB1B",
+          "#EB5E68",
+          "#B6BE1C",
+          "#F64D1A",
+          "#BA6DE4",
+          "#EA6BCB",
+          "#B9AAC8",
+          "#F08519",
+          "#C0C0C0"
+        ];;
+      }
+    } else {
+      console.error("Expected an string for ColorRange.");
+    }
+  },
   setShortestPathString(newString) {
     if (typeof newString === "string") {
       this.shortestPathString = newString;
