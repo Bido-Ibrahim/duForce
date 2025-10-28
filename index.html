@@ -122,14 +122,13 @@
       <div id="helpInfoButtonContainer" class="infoButtonContainer">
         <button id="helpInfoCloseButton" class="infoCloseButton">x</button>
       </div>
-      <script>
+      <script type="module">
         const panel = document.getElementById('helpInformationPanel');
-        const overlay = document.getElementById('helpModalOverlay');
-        const buttonPanel = document.getElementById('helpInfoButtonContainer');
-        const button = document.getElementById('helpInfoCloseButton');
+
+        import infoPanelUrl from './infoPanel.html?url';
 
         // Load infoPanel.html content on page load
-        fetch('infoPanel.html')
+        fetch(infoPanelUrl)
           .then(response => {
             if (!response.ok) throw new Error("Failed to load panel content");
             return response.text();
@@ -141,32 +140,20 @@
             panel.innerHTML = "<p>Failed to load help content.</p>";
             console.error(err);
           });
-        function closeModal() {
-          panel.classList.remove('active');
-          overlay.classList.remove('active');
-          buttonPanel.classList.remove('active');
-        }
-
-        // Open modal (you can call this from a button or event)
-        // Example: openModal();
-
-        // Close modal on overlay click
-        overlay.addEventListener('click', closeModal);
-        button.addEventListener('click', closeModal);
-
-
       </script>
 
       <!-- constantOptions panel, fixed bottom right above zoom buttons, only available on request -->
       <div id="constantOptionsModalOverlay"></div>
       <div id="constantOptionsPanel"></div>
       <div id="constantOptionsButtonContainer" class="infoButtonContainer">
-        <button id="constantOptionsCloseButton" class="infoCloseButton">x</button>
+        <button id="constantOptionsCloseButton" class="CloseButton">x</button>
       </div>
-      <script>
+      <script type="module">
         const constantsPanel = document.getElementById('constantOptionsPanel');
+        import constantOptionsUrl from './constantOptions.html?url';
+
         // Load infoPanel.html content on page load
-        fetch('constantOptions.html')
+        fetch(constantOptionsUrl)
           .then(response => {
             if (!response.ok) throw new Error("Failed to load panel content");
             return response.text();
@@ -178,8 +165,6 @@
             constantsPanel.innerHTML = "<p>Failed to load help content.</p>";
             console.error(err);
           });
-
-
 
       </script>
       <!-- container far right -->

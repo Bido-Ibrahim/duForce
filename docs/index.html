@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" crossorigin="anonymous"></script>
     
     <title>Graph Application</title>
-    <script type="module" crossorigin src="/duForce/assets/index-28754895.js"></script>
+    <script type="module" crossorigin src="/duForce/assets/index-79b77381.js"></script>
     <link rel="stylesheet" href="/duForce/assets/index-974e3607.css">
   </head>
   <body>
@@ -124,66 +124,15 @@
       <div id="helpInfoButtonContainer" class="infoButtonContainer">
         <button id="helpInfoCloseButton" class="infoCloseButton">x</button>
       </div>
-      <script>
-        const panel = document.getElementById('helpInformationPanel');
-        const overlay = document.getElementById('helpModalOverlay');
-        const buttonPanel = document.getElementById('helpInfoButtonContainer');
-        const button = document.getElementById('helpInfoCloseButton');
-
-        // Load infoPanel.html content on page load
-        fetch('infoPanel.html')
-          .then(response => {
-            if (!response.ok) throw new Error("Failed to load panel content");
-            return response.text();
-          })
-          .then(html => {
-            panel.innerHTML = html;
-          })
-          .catch(err => {
-            panel.innerHTML = "<p>Failed to load help content.</p>";
-            console.error(err);
-          });
-        function closeModal() {
-          panel.classList.remove('active');
-          overlay.classList.remove('active');
-          buttonPanel.classList.remove('active');
-        }
-
-        // Open modal (you can call this from a button or event)
-        // Example: openModal();
-
-        // Close modal on overlay click
-        overlay.addEventListener('click', closeModal);
-        button.addEventListener('click', closeModal);
-
-
-      </script>
+      
 
       <!-- constantOptions panel, fixed bottom right above zoom buttons, only available on request -->
       <div id="constantOptionsModalOverlay"></div>
       <div id="constantOptionsPanel"></div>
       <div id="constantOptionsButtonContainer" class="infoButtonContainer">
-        <button id="constantOptionsCloseButton" class="infoCloseButton">x</button>
+        <button id="constantOptionsCloseButton" class="CloseButton">x</button>
       </div>
-      <script>
-        const constantsPanel = document.getElementById('constantOptionsPanel');
-        // Load infoPanel.html content on page load
-        fetch('constantOptions.html')
-          .then(response => {
-            if (!response.ok) throw new Error("Failed to load panel content");
-            return response.text();
-          })
-          .then(html => {
-            constantsPanel.innerHTML = html;
-          })
-          .catch(err => {
-            constantsPanel.innerHTML = "<p>Failed to load help content.</p>";
-            console.error(err);
-          });
-
-
-
-      </script>
+      
       <!-- container far right -->
       <div id="collapsibleMenuContainer">
         <div>
