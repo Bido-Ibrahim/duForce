@@ -1846,12 +1846,30 @@ export default async function ForceGraph(
       .on("click", () => {
           const panel = document.getElementById('helpInformationPanel');
           const overlay = document.getElementById('helpModalOverlay');
-          const buttonPanel = document.getElementById('infoButtonContainer');
+          const buttonPanel = document.getElementById('helpInfoButtonContainer');
 
           panel.classList.add('active');
           overlay.classList.add('active');
           buttonPanel.classList.add('active');
       })
+
+    const helpInfoPanel = document.getElementById('helpInformationPanel');
+    const helpInfoOverlay = document.getElementById('helpModalOverlay');
+    const helpInfoButtonPanel = document.getElementById('helpInfoButtonContainer');
+    const helpInfoCloseButton = document.getElementById('helpInfoCloseButton');
+
+    function closeModal() {
+      helpInfoPanel.classList.remove('active');
+      helpInfoOverlay.classList.remove('active');
+      helpInfoButtonPanel.classList.remove('active');
+    }
+
+    // Open modal (you can call this from a button or event)
+    // Example: openModal();
+
+    // Close modal on overlay click
+    helpInfoOverlay.addEventListener('click', closeModal);
+    helpInfoCloseButton.addEventListener('click', closeModal);
 
     // TEMP FOR CONSTANTS//
     const constantOptionsButton = d3.select("#constantOptions");
@@ -1954,7 +1972,7 @@ export default async function ForceGraph(
 
     // update submodule Positions fill
     // update color.
-
+    const constantsPanel = document.getElementById('constantOptionsPanel');
     const constantsButtonPanel = document.getElementById('constantOptionsButtonContainer');
     const constantsOverlay = document.getElementById('constantOptionsModalOverlay');
     const constantsButton = document.getElementById('constantOptionsCloseButton');
