@@ -508,6 +508,10 @@ input[type="range"] {
 #downloadImage {
     left: 1.45rem;
 }
+
+#constantOptions{
+    left: 2.65rem;
+}
 #downloadNNData {
     cursor: pointer;
     position: absolute;
@@ -518,7 +522,7 @@ input[type="range"] {
 }
 
 
-#helpInfo, #downloadImage{
+#helpInfo, #downloadImage, #constantOptions{
     position: absolute;
     top: 1.6rem;
     padding:  0.6rem 0px 0px 0.3rem;
@@ -646,7 +650,7 @@ input[type="range"] {
 
 }
 
-#helpInformationPanel {
+#helpInformationPanel, #constantOptionsPanel {
     background-color: black;
     color: white;
     z-index: 1000;
@@ -664,13 +668,13 @@ input[type="range"] {
     overflow-y: auto;
 }
 
-#helpInformationPanel.active {
+#helpInformationPanel.active, #constantOptionsPanel.active {
     visibility: visible;
     opacity: 1;
 }
 
 /* Optional: backdrop overlay */
-#helpModalOverlay {
+#helpModalOverlay, #constantOptionsModalOverlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -683,22 +687,22 @@ input[type="range"] {
     transition: opacity 0.2s ease;
 }
 
-#helpModalOverlay.active {
+#helpModalOverlay.active, #constantOptionsModalOverlay.active {
     visibility: visible;
     opacity: 1;
 }
-#infoButtonContainer {
+.infoButtonContainer {
     visibility: hidden;
     position: fixed;
     top: calc(50% - 40vh); /* 50% down minus half the modal height */
     left: calc(50% + 30vw - 2rem); /* 50% across + half modal width - offset */
     z-index: 1001; /* Must be above the modal */
 }
-#infoButtonContainer.active {
+.infoButtonContainer.active {
     visibility: visible;
     opacity: 1;
 }
-#infoCloseButton {
+.infoCloseButton {
     background: none;
     border: none;
     font-size: 1.5rem;
@@ -710,4 +714,30 @@ input[type="range"] {
 
 #infoCloseButton:hover {
     color: #a0a0a0;
+}
+
+.slider-row {
+    display: flex;
+    flex-wrap: wrap;          /* allow wrapping if container is too narrow */
+    gap: 10px;                /* space between groups */
+}
+
+.slider-group {
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;      /* vertically align label, slider, value */
+    gap: 5px;
+    white-space: nowrap;      /* prevent labels from wrapping */
+}
+
+.slider-group label,
+.slider-group .value-display {
+    line-height: 1;           /* ensure text height aligns nicely */
+}
+
+.slider-group input[type="range"] {
+    width: 80px;
+    vertical-align: middle;   /* aligns slider vertically with text */
+    margin-top: 0;            /* remove any extra top margin */
+    margin-bottom: 0;
 }

@@ -6,13 +6,9 @@ import { drawTree, remToPx } from "./tree";
 import {
   LINK_ARROW_COLOR,
   LINK_COLOR,
-  LINK_FORCE_STRENGTH,
   MESSAGES,
-  NODE_RADIUS_RANGE,
-  RADIUS_COLLIDE_MULTIPLIER,
   RADIUS_COLLIDE_MAX,
-  SIMULATION_TICK_TIME,
-  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO,
+  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO, RADIUS_COLLIDE_MULTIPLIER,
 } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
@@ -94,6 +90,12 @@ export default async function ForceGraph(
 
   } = {}
 ) {
+
+  // temporarily putting constants here.
+  const NODE_RADIUS_RANGE = [config.radiusMin,config.radiusMax];
+  const RADIUS_COLLIDE_MULTIPLIER = config.radiusCollideMultiplier;
+  const LINK_FORCE_STRENGTH = config.linkForceStrength;
+  const SIMULATION_TICK_TIME = config.simulationTickTime;
   if (!nodes) return;
   const windowBaseUrl = window.location.href.split("?")[0];
   resetMenuVisibility(width);
@@ -120,8 +122,8 @@ export default async function ForceGraph(
     if(!matchingSubmodule){
       console.error('PROBLEM WITH MATCHING SUBMODULE - should not happen!!!!')
     }
-    node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.parameterCount;
     node.color = matchingSubmodule.fill;
+    node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.parameterCount;
     node.startPosition = [matchingSubmodule.x, matchingSubmodule.y];
     node.radius = nodeRadiusScale(node.radiusVar);
     acc.push(node);
@@ -1850,6 +1852,149 @@ export default async function ForceGraph(
           overlay.classList.add('active');
           buttonPanel.classList.add('active');
       })
+
+    // TEMP FOR CONSTANTS//
+    const constantOptionsButton = d3.select("#constantOptions");
+
+    constantOptionsButton
+      .on("click", () => {
+        const panel = document.getElementById('constantOptionsPanel');
+        const overlay = document.getElementById('constantOptionsModalOverlay');
+        const buttonPanel = document.getElementById('constantOptionsButtonContainer');
+
+        panel.classList.add('active');
+        overlay.classList.add('active');
+        buttonPanel.classList.add('active');
+      })
+
+    const sliderRMin = document.getElementById('sliderRMin');
+    const displayRMin = document.getElementById('valueDisplayRMin');
+
+    sliderRMin.value = config.radiusMin;
+    displayRMin.textContent = config.radiusMin;
+
+    sliderRMin.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayRMin.textContent = value;
+      config.setRadiusMin(+value);
+      if(config.graphDataType === "parameter"){
+        nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
+        showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
+      }
+    });
+
+    const sliderRMax = document.getElementById('sliderRMax');
+    const displayRMax = document.getElementById('valueDisplayRMax');
+    sliderRMax.value = config.radiusMax;
+    displayRMax.textContent = config.radiusMax;
+
+    sliderRMax.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayRMax.textContent = value;
+      config.setRadiusMax(+value);
+      if(config.graphDataType === "parameter"){
+        nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
+        showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
+      }
+    });
+
+    const sliderRMultiplier = document.getElementById('sliderRMultiplier');
+    const displayRMultiplier = document.getElementById('valueDisplayRMultiplier');
+    sliderRMultiplier.value = config.radiusCollideMultiplier;
+    displayRMultiplier.textContent = config.radiusCollideMultiplier;
+
+    sliderRMultiplier.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayRMultiplier.textContent = value;
+      config.setRadiusCollideMultiplier(+value);
+
+    });
+
+    const sliderLinkStrength = document.getElementById('sliderLinkStrength');
+    const displayLinkStrength = document.getElementById('valueDisplayLinkStrength');
+    sliderLinkStrength.value = config.linkForceStrength;
+    displayLinkStrength.textContent = config.linkForceStrength;
+
+    sliderLinkStrength.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayLinkStrength.textContent = value;
+      config.setLinkForceStrength(+value);
+
+    });
+
+    const sliderSimulationTickTime = document.getElementById('sliderSimulationTickTime');
+    const displaySimulationTickTime = document.getElementById('valueDisplaySimulationTickTime');
+    sliderSimulationTickTime.value = config.simulationTickTime;
+    displaySimulationTickTime.textContent = config.simulationTickTime;
+
+    sliderSimulationTickTime.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displaySimulationTickTime.textContent = value;
+      config.setSimulationTickTime(+value);
+    });
+
+    const colorSelect = document.getElementById('paletteSelect');
+
+    colorSelect.addEventListener('change', (event) => {
+      const selectedPalette = event.target.value;
+      config.setColorRange(selectedPalette);
+      subModulePositions.forEach((f, i) => {
+        f.fill = config.colorRange[i];
+      })
+      showEle.nodes.forEach((node) => {
+        const subModule = node.subModule ? node.subModule : node.data.subModule;
+        const matchingSubmodule = subModulePositions.find((f) => f.name === subModule);
+        if(!matchingSubmodule){
+          console.error('PROBLEM WITH MATCHING SUBMODULE - should not happen!!!!')
+        }
+        node.color = matchingSubmodule.fill;
+        svg.selectAll(".nodeCircle").attr("fill", (d) =>  d.color );
+      })
+    });
+
+    // update submodule Positions fill
+    // update color.
+
+    const constantsButtonPanel = document.getElementById('constantOptionsButtonContainer');
+    const constantsOverlay = document.getElementById('constantOptionsModalOverlay');
+    const constantsButton = document.getElementById('constantOptionsCloseButton');
+
+    function closeConstantsModal() {
+      constantsPanel.classList.remove('active');
+      constantsOverlay.classList.remove('active');
+      constantsButtonPanel.classList.remove('active');
+      if(config.graphDataType === "parameter"){
+        d3.select(".animation-container").style("display", "flex");
+        setTimeout(() => {
+          simulation
+            .force("link", d3.forceLink().id((d) => d.id).strength((link) => {
+              if(config.graphDataType !== "parameter"){
+                return 0
+              } // default from https://d3js.org/d3-force/link as distance doesn't matter here
+              // return 0
+              return config.linkForceStrength/ Math.min(link.source.radiusVar, link.target.radiusVar)
+            }))
+            .force("collide", d3.forceCollide() // change segment when ready
+            .radius((d) => Math.min(d.radius * config.radiusCollideMultiplier, RADIUS_COLLIDE_MAX))
+            .strength(0.8));
+
+          simulation.nodes([]).force("link").links([]);
+          simulation.nodes(showEle.nodes).force("link").links(showEle.links);
+          // restart simulation
+          simulation.alphaTarget(0.1).restart();
+          // stop at calculated tick time (from previous dev)
+          simulation.tick(config.simulationTickTime);
+          // stop simulation
+          simulation.stop();
+          updatePositions();
+        }, 0); // or 16 for ~1 frame delay at 60fps
+      }
+    }
+
+
+    // Close modal on overlay click
+    constantsOverlay.addEventListener('click', closeConstantsModal);
+    constantsButton.addEventListener('click', closeConstantsModal);
 
     const downloadImageButton = d3.select("#downloadImage");
 

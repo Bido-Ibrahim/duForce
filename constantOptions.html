@@ -1,0 +1,40 @@
+<strong>VARIABLE ONLY</strong><br>
+<div class="slider-row">
+  <div class="slider-group">
+    <label for="sliderRMin">Radius Min</label>
+    <input type="range" id="sliderRMin" name="slider" min="1" max="10" value="1" step="1">
+    <span class="value-display" id="valueDisplayRMin"></span>
+  </div>
+
+  <div class="slider-group">
+    <label for="sliderRMax">Radius Max</label>
+    <input type="range" id="sliderRMax" name="slider" min="20" max="80" value="" step="1">
+    <span class="value-display" id="valueDisplayRMax"></span>
+  </div>
+
+  <div class="slider-group">
+    <label for="sliderRMultiplier">Radius Collide Multiplier (space around nodes)</label>
+    <input type="range" id="sliderRMultiplier" name="slider" min="1.2" max="6" value="" step="0.2">
+    <span class="value-display" id="valueDisplayRMultiplier"></span>
+  </div>
+  <div class="slider-group">
+    <label for="sliderLinkStrength">Link Force Strength (0 === no strength, 1 === original)</label>
+    <input type="range" id="sliderLinkStrength" name="slider" min="0" max="1.5" value="" step="0.1">
+    <span class="value-display" id="valueDisplayLinkStrength"></span>
+  </div>
+  <div class="slider-group">
+    <label for="sliderSimulationTickTime">SimulationTickTime - time to place nodes</label>
+    <br><input type="range" id="sliderSimulationTickTime" name="slider" min="300" max="600" value="" step="0.1">
+    <span class="value-display" id="valueDisplaySimulationTickTime"></span>
+  </div>
+  <div class="slider-group">
+    <label for="paletteSelect">Choose a palette:</label>
+    <select id="paletteSelect" name="palette">
+      <option value="new palette">New Palette</option>
+      <option value="tableau11">Tableau 11</option>
+      <option value="gestalt">Gestalt</option>
+      <option value="original palette">Original Palette</option>
+      <option value="observable11">Observable 11</option>
+    </select>
+  </div>
+</div>

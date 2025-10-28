@@ -355,9 +355,9 @@ async function getData() {
           NAME: d.NAME.replace(/ /g, "_"), // ensuring no spaces (removed in labels)
           DEFINITION: d.DEFINITION,
           SUBMODULE: d.SUBMODULE, // MUST BE A UNIQUE ID
-          SUBMODULE_NAME: d["SUBMODULE NAME"], // PREFERABLY A UNIQUE LABEL
+          SUBMODULE_NAME: d["SUBMODULE NAME"] || d["SUBMODULE_NAME"], // PREFERABLY A UNIQUE LABEL
           SEGMENT: d.SEGMENT, // MUST BE A UNIQUE ID
-          SEGMENT_NAME: d["SEGMENT NAME"], // PREFERABLY A UNIQUE LABEL
+          SEGMENT_NAME: d["SEGMENT NAME"]  || d["SEGMENT_NAME"], // PREFERABLY A UNIQUE LABEL
           UNITS: d.UNITS,
           "Parameter Explanation": d["Parameter Explanation"]
         };
