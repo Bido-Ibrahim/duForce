@@ -8,7 +8,7 @@ import {
   LINK_COLOR,
   MESSAGES,
   RADIUS_COLLIDE_MAX,
-  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO, RADIUS_COLLIDE_MULTIPLIER,
+  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO,
 } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
@@ -73,8 +73,6 @@ const resetMenuVisibility = () => {
   d3.select("#resetButton").style("top",`${buttonPosition + 0.8}rem`);
   d3.select("#search-tab-container").style("height", searchTabContainerHeight);
 
-
-
 }
 export default async function ForceGraph(
   {
@@ -96,6 +94,8 @@ export default async function ForceGraph(
   const RADIUS_COLLIDE_MULTIPLIER = config.radiusCollideMultiplier;
   const LINK_FORCE_STRENGTH = config.linkForceStrength;
   const SIMULATION_TICK_TIME = config.simulationTickTime;
+  let PARAMETER_CLUSTER_STRENGTH = config.parameterClusterStrength;
+
   if (!nodes) return;
   const windowBaseUrl = window.location.href.split("?")[0];
   resetMenuVisibility(width);
@@ -158,11 +158,24 @@ export default async function ForceGraph(
 
   const xWeight = width > height ? 0.7 : 1;
   const yWeight = width > height ? 1 : 0.7;
+
+  const parameterStrengthScale = d3.scaleLinear()
+    .domain([0,radiusMax])
+    .range([0.05,1])
   const getXYStrength = (d) => {
-    if(config.graphDataType === "parameter") return 0.6;
+    if(config.graphDataType === "parameter") return parameterStrengthScale(d.linkCount);
     if(d.type === "tier1") return 0.3;
     if(d.type === "tier2") return 0.6;
     if(d.type === "tier3") return 0.05;
+  }
+  const getForceX = (d) => {
+    if(config.graphDataType === "parameter") return width/2;
+    return d.startPosition ? d.startPosition[0] : (d.x ? d.x : 0)
+  }
+
+  const getForceY = (d) => {
+    if(config.graphDataType === "parameter") return height/2;
+    return d.startPosition ? d.startPosition[1] : (d.y ? d.y : 0)
   }
   // Initialize simulation
   const simulation = d3
@@ -174,8 +187,8 @@ export default async function ForceGraph(
      // return 0
       return LINK_FORCE_STRENGTH/ Math.min(link.source.radiusVar, link.target.radiusVar)
     }))
-    .force("x", d3.forceX((d) => d.startPosition ? d.startPosition[0] : (d.x ? d.x : 0)).strength((d) => getXYStrength(d) * xWeight))
-    .force("y", d3.forceY((d) => d.startPosition ? d.startPosition[1] : (d.y ? d.y : 0)).strength((d) => getXYStrength(d) * yWeight))
+    .force("x", d3.forceX(getForceX).strength((d) => getXYStrength(d) * xWeight))
+    .force("y", d3.forceY(getForceY).strength((d) => getXYStrength(d) * yWeight))
     .force("collide", d3.forceCollide() // change segment when ready
       .radius((d) => Math.min(d.radius * RADIUS_COLLIDE_MULTIPLIER, RADIUS_COLLIDE_MAX))
       .strength(0.8)
@@ -1439,7 +1452,7 @@ export default async function ForceGraph(
 
 
   function forceCluster() {
-    const tier3Strength = config.graphDataType !== "parameter" ? 0.5 : 0;
+    const tier3Strength = config.graphDataType !== "parameter" ? 0.5 : PARAMETER_CLUSTER_STRENGTH;
     let nodes;
     function force(alpha) {
 
@@ -1942,13 +1955,25 @@ export default async function ForceGraph(
 
     const sliderSimulationTickTime = document.getElementById('sliderSimulationTickTime');
     const displaySimulationTickTime = document.getElementById('valueDisplaySimulationTickTime');
+    const sliderClusterStrength = document.getElementById('sliderClusterStrength');
+    const displayClusterStrength = document.getElementById('valueDisplayClusterStrength');
+
     sliderSimulationTickTime.value = config.simulationTickTime;
     displaySimulationTickTime.textContent = config.simulationTickTime;
+    sliderClusterStrength.value = config.parameterClusterStrength;
+    displayClusterStrength.textContent = config.parameterClusterStrength;
 
     sliderSimulationTickTime.addEventListener('input', (e) => {
       const value = e.target.value;
       displaySimulationTickTime.textContent = value;
       config.setSimulationTickTime(+value);
+    });
+
+    sliderClusterStrength.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayClusterStrength.textContent = value;
+      PARAMETER_CLUSTER_STRENGTH = +value;
+      config.setParameterClusterStrength(+value);
     });
 
     const colorSelect = document.getElementById('paletteSelect');
@@ -1992,7 +2017,8 @@ export default async function ForceGraph(
               // return 0
               return config.linkForceStrength/ Math.min(link.source.radiusVar, link.target.radiusVar)
             }))
-            .force("collide", d3.forceCollide() // change segment when ready
+            .force("cluster", forceCluster()) // cluster all nodes belonging to the same submodule.
+            .force("collide", d3.forceCollide() // change segment when ready.force("cluster", forceCluster()) // cluster all nodes belonging to the same submodule.
             .radius((d) => Math.min(d.radius * config.radiusCollideMultiplier, RADIUS_COLLIDE_MAX))
             .strength(0.8));
 

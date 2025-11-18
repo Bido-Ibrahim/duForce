@@ -37,6 +37,7 @@ export const config = {
   radiusMax: 50,
   radiusCollideMultiplier: 2.5,
   linkForceStrength: 0.5,
+  parameterClusterStrength: 0.2,
   simulationTickTime: 300,
   colorRange: [
     "#0072B2",
@@ -50,6 +51,13 @@ export const config = {
     "#64C4CD",
     "#6A0DAD",
     "#BADA55"],
+  setParameterClusterStrength(newNumber) {
+    if (typeof newNumber === "number") {
+      this.parameterClusterStrength = newNumber;
+    } else {
+      console.error("Expected an string for parameterClusterStrength.");
+    }
+  },
   setRadiusMin(newNumber) {
     if (typeof newNumber === "number") {
       this.radiusMin = newNumber;
