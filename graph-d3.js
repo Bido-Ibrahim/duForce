@@ -1770,6 +1770,9 @@ export default async function ForceGraph(
     d3.select("#collapsibleMenuContainer").style("display",isHide ? "none" : "block");
     d3.select("#unselectAll").style("display",isHide ? "none" : "block");
     d3.select("#search-tab-container").style("height",isHide ? "4rem" :"auto");
+    if(!isHide){
+      drawTree();
+    }
   }
 
   function updateButtons(graph) {

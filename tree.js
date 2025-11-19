@@ -85,8 +85,8 @@ export const remToPx = (rem) =>{
 const marginTop = 0;
 const rowHeight = remToPx(1.7);
 const treeDivId = "collapsibleMenuDiv";
-// search-tab-container width is 18rem;
-let treeWidth = remToPx(17.5);
+// search-tab-container width is 18rem, 20px is absolute maximum scrollbar width;
+let treeWidth = remToPx(18) - 20;
 
 // config.selectedNodeNames used by chart + list
 const getSelectedPath = (descendantNames) => {
@@ -359,7 +359,7 @@ export default function VariableTree(data) {
   config.setCollapsedTreeData(allCollapsedData);
   config.setCurrentTreeData(treeData);
 
-  const initialTreeHeight = marginTop + (treeData.descendants().length * rowHeight); // this resets after each render
+  const initialTreeHeight = window.innerHeight - marginTop - 300;
 
   // Prevent the scroll event on the tree from affecting other elements
   d3.select(`#${treeDivId}`)
@@ -483,7 +483,7 @@ export default function VariableTree(data) {
 // Your resize handler function
   function handleResize() {
     // redraw tree on resize so container size matches tree size
-    treeWidth = remToPx(17.5);
+    treeWidth = remToPx(18) - 20;
     svg.attr("width", treeWidth);
     // resizing main svg (not re-rendering chart due to load/rendering time)
     let mainAppSvg = d3.select(mainAppContainerSelector).select("svg");
