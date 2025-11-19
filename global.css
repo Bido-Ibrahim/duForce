@@ -230,7 +230,7 @@ select {
     border: 0px ;
     padding: 0px;
     width: 18rem;
-    height: calc(100vh - 6rem);
+    height: calc(100vh - 12rem);
     z-index: 90;
 }
 /* chart component */
@@ -238,7 +238,7 @@ select {
     position: relative;
     margin-top: 5.2rem;
     width: 100%;
-    max-height: calc(100vh - 9.5rem);
+    max-height: calc(100vh - 12rem);
     height: auto;
     overflow-y: auto;
 }
