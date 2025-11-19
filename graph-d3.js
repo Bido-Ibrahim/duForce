@@ -8,7 +8,7 @@ import {
   LINK_COLOR,
   MESSAGES,
   RADIUS_COLLIDE_MAX,
-  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO,
+  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO, SHOW_SETTINGS,
 } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
@@ -1891,6 +1891,7 @@ export default async function ForceGraph(
     const constantOptionsButton = d3.select("#constantOptions");
 
     constantOptionsButton
+      .style("display",SHOW_SETTINGS ? "block" : "none")
       .on("click", () => {
         const panel = document.getElementById('constantOptionsPanel');
         const overlay = document.getElementById('constantOptionsModalOverlay');
@@ -1941,7 +1942,6 @@ export default async function ForceGraph(
       const value = e.target.value;
       displayRMultiplier.textContent = value;
       config.setRadiusCollideMultiplier(+value);
-
     });
 
     const sliderLinkStrength = document.getElementById('sliderLinkStrength');

@@ -1,5 +1,13 @@
 // config.js
 
+import {
+  COLOR_SCALE_RANGE,
+  LINK_FORCE_STRENGTH,
+  NODE_RADIUS_RANGE,
+  PARAMETER_CLUSTER_STRENGTH,
+  RADIUS_COLLIDE_MULTIPLIER, SHOW_SETTINGS, SIMULATION_TICK_TIME,
+} from "./constants";
+
 export const config = {
   // default settings
   currentLayout: "default", // 3 options - "default", "nearestNeighbour", "shortestPath"
@@ -31,26 +39,14 @@ export const config = {
   tooltipRadio: "none", // used to toggle visibility of tooltipRadio button visible on NN
   macroMesoUrlExtras: [],
   nnUrlView: false,
-
-  // temp config for constant testing
-  radiusMin: 1,
-  radiusMax: 50,
-  radiusCollideMultiplier: 2.5,
-  linkForceStrength: 0.5,
-  parameterClusterStrength: 0.2,
-  simulationTickTime: 300,
-  colorRange: [
-    "#0072B2",
-    "#D55E00",
-    "#009E73",
-    "#CC79A7",
-    "#56B4E9",
-    "#F0E442",
-    "#999999",
-    "#E69F00",
-    "#64C4CD",
-    "#6A0DAD",
-    "#BADA55"],
+  // config constants testing variables
+  radiusMin: NODE_RADIUS_RANGE[0],
+  radiusMax: NODE_RADIUS_RANGE[1],
+  radiusCollideMultiplier: RADIUS_COLLIDE_MULTIPLIER,
+  linkForceStrength: LINK_FORCE_STRENGTH,
+  parameterClusterStrength: PARAMETER_CLUSTER_STRENGTH,
+  simulationTickTime: SIMULATION_TICK_TIME,
+  colorRange: COLOR_SCALE_RANGE,
   setParameterClusterStrength(newNumber) {
     if (typeof newNumber === "number") {
       this.parameterClusterStrength = newNumber;

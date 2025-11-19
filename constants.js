@@ -1,7 +1,6 @@
-import { config } from "./config";
-
-
+export const SHOW_SETTINGS = true;
 export const LINK_COLOR = "#C0C0C0";
+export const PARAMETER_CLUSTER_STRENGTH = 0.2;
 export const LINK_ARROW_COLOR = "#737373";
 export const COLOR_SCALE_RANGE = [
   "#0072B2",
