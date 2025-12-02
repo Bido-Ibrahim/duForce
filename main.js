@@ -190,6 +190,7 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
       m.subModule = m.data.subModule;
       if(m.depth === 1){
         m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
+
         subModuleNames.add(m.data.id);
         const oppositeIdAndDirection = getOppositeIds(m.leaves());
         const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
@@ -202,9 +203,9 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
         const segmentSet = segmentGroup.map((m) => m[0]);
         addToDirectionGroup(segmentGroup,oppositeIdAndDirection);
         // submodule -> submodule, submodule -> segment, segment -> parameter
-        allLinks.push(
-          ...[...oppositeIds, ...subModuleSet, ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }))
-        );
+        const subModuleLinks = [...oppositeIds, ...subModuleSet, ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }));
+        allLinks.push(...subModuleLinks);
+        m.data.linkCount = subModuleLinks.length;
       } else if(m.depth === 2){
         m.data.parameterCount = m.children.length;
         segmentNames.add(m.data.id);
@@ -217,17 +218,16 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
         const segmentSet = segmentGroup.map((m) => m[0]);
         addToDirectionGroup(segmentGroup,oppositeIdAndDirection);
         // segment -> segment, segment -> parameter
-        allLinks.push(
-          ...[...oppositeIds,  ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }))
-        );
+        const segmentLinks = [...oppositeIds,  ...segmentSet].map(d => ({ source: m.data.id, target: d, direction: getDirection(d,oppositeIdAndDirection) }));
+        allLinks.push(...segmentLinks);
+        m.data.linkCount = segmentLinks.length;
       } else if (m.depth === 3){
         const oppositeIdAndDirection = getOppositeIds(m.leaves());
         const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
           .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && (s.segment === m.data.id || s.subModule === m.data.subModule)));
         // parameter -> parameter
-        allLinks.push(
-          ...[...oppositeIds].map(d => ({ source: m.data.id, target: d,direction: getDirection(d,oppositeIdAndDirection)}))
-        )
+        const parameterLinks = [...oppositeIds].map(d => ({ source: m.data.id, target: d,direction: getDirection(d,oppositeIdAndDirection)}))
+        allLinks.push(...parameterLinks)
       }
     })
   const subModuleNodes = nodesCopy.descendants().filter((f) => f.depth === 1);
