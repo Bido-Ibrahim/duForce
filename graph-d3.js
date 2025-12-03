@@ -10,7 +10,7 @@ import {
   RADIUS_COLLIDE_MAX,
   TOOLTIP_KEYS,
   NODE_RADIUS_RANGE_MACRO_MESO,
-  SHOW_SETTINGS, COLOR_SCALE_RANGE,
+  SHOW_SETTINGS, COLOR_SCALE_RANGE, LABEL_FONT_BASE_REM,
 } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
@@ -96,6 +96,7 @@ export default async function ForceGraph(
   const RADIUS_COLLIDE_MULTIPLIER = config.radiusCollideMultiplier;
   const LINK_FORCE_STRENGTH = config.linkForceStrength;
   const SIMULATION_TICK_TIME = config.simulationTickTime;
+  const LABEL_FONT_BASE_REM = config.labelRem;
   let PARAMETER_CLUSTER_STRENGTH = config.parameterClusterStrength;
 
   if (!nodes) return;
@@ -126,7 +127,7 @@ export default async function ForceGraph(
     }
     node.color = matchingSubmodule.fill;
    // node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.parameterCount;
-    node.radiusVar = node.linkCount || node.data.linkCount;
+    node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.linkCount;
     node.startPosition = [matchingSubmodule.x, matchingSubmodule.y];
     node.radius = nodeRadiusScale(node.radiusVar);
     node.group = node.subModule;
@@ -293,11 +294,10 @@ export default async function ForceGraph(
   }
   function getNodeLabelSize (d)  {
     if(config.graphDataType !== "parameter")return d.radius * 0.8;
-   // if(config.graphDataType !== "parameter" && d.type === "tier1") return `${currentZoomLevel}em`;
-    if(config.graphDataType !== "parameter") return `${0.6/currentZoomLevel}em`;
-    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return "0.4rem";
-    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return "0.6rem";
-    return "0.4rem"
+    if(config.graphDataType !== "parameter") return `${(LABEL_FONT_BASE_REM + 0.2)/currentZoomLevel}em`;
+    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return `${LABEL_FONT_BASE_REM}rem`
+    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return `${LABEL_FONT_BASE_REM + 0.2}rem`;
+    return `${LABEL_FONT_BASE_REM}rem`
   }
 
   const zoom = d3
@@ -1444,7 +1444,7 @@ export default async function ForceGraph(
          const centroids = d3.rollup(nodes, centroid, (r) =>   r.subModule );
          for (const d of nodes) {
            const l = alpha * strength;
-           const { x: cx, y: cy } = centroids.get(config.graphDataType ===  d.subModule );
+           const { x: cx, y: cy } = centroids.get(d.subModule);
            d.vx -= (d.x - cx) * l;
            d.vy -= (d.y - cy) * l;
          }
@@ -1908,6 +1908,20 @@ export default async function ForceGraph(
         overlay.classList.add('active');
         buttonPanel.classList.add('active');
       })
+
+    const sliderRem = document.getElementById('labelFontSizeRem');
+    const displayRem = document.getElementById('valueDisplayLabelFontSizeRem');
+
+
+    sliderRem.value = config.labelRem || 0.4;
+    displayRem.textContent = config.labelRem || 0.4;
+
+    sliderRem.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayRem.textContent = value;
+      config.setLabelRem(+value);
+    });
+
 
     const sliderRMin = document.getElementById('sliderRMin');
     const displayRMin = document.getElementById('valueDisplayRMin');

@@ -1,7 +1,7 @@
 // config.js
 
 import {
-  COLOR_SCALE_RANGE,
+  COLOR_SCALE_RANGE, LABEL_FONT_BASE_REM,
   LINK_FORCE_STRENGTH,
   NODE_RADIUS_RANGE,
   PARAMETER_CLUSTER_STRENGTH,
@@ -46,6 +46,14 @@ export const config = {
   linkForceStrength: LINK_FORCE_STRENGTH,
   parameterClusterStrength: PARAMETER_CLUSTER_STRENGTH,
   simulationTickTime: SIMULATION_TICK_TIME,
+  labelRem: LABEL_FONT_BASE_REM,
+  setLabelRem(newNumber) {
+    if (typeof newNumber === "number") {
+      this.labelRem = newNumber;
+    } else {
+      console.error("Expected an string for labelRem.");
+    }
+  },
   setParameterClusterStrength(newNumber) {
     if (typeof newNumber === "number") {
       this.parameterClusterStrength = newNumber;
