@@ -8,7 +8,9 @@ import {
   LINK_COLOR,
   MESSAGES,
   RADIUS_COLLIDE_MAX,
-  TOOLTIP_KEYS, NODE_RADIUS_RANGE_MACRO_MESO, SHOW_SETTINGS,
+  TOOLTIP_KEYS,
+  NODE_RADIUS_RANGE_MACRO_MESO,
+  SHOW_SETTINGS, COLOR_SCALE_RANGE, LABEL_FONT_BASE_REM,
 } from "./constants";
 import { dijkstra } from "graphology-shortest-path";
 
@@ -94,6 +96,7 @@ export default async function ForceGraph(
   const RADIUS_COLLIDE_MULTIPLIER = config.radiusCollideMultiplier;
   const LINK_FORCE_STRENGTH = config.linkForceStrength;
   const SIMULATION_TICK_TIME = config.simulationTickTime;
+  const LABEL_FONT_BASE_REM = config.labelRem;
   let PARAMETER_CLUSTER_STRENGTH = config.parameterClusterStrength;
 
   if (!nodes) return;
@@ -123,9 +126,11 @@ export default async function ForceGraph(
       console.error('PROBLEM WITH MATCHING SUBMODULE - should not happen!!!!')
     }
     node.color = matchingSubmodule.fill;
-    node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.parameterCount;
+   // node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.parameterCount;
+    node.radiusVar = config.graphDataType === "parameter" ? node.linkCount : node.data.linkCount;
     node.startPosition = [matchingSubmodule.x, matchingSubmodule.y];
     node.radius = nodeRadiusScale(node.radiusVar);
+    node.group = node.subModule;
     acc.push(node);
     return acc;
   }, [])
@@ -187,15 +192,16 @@ export default async function ForceGraph(
      // return 0
       return LINK_FORCE_STRENGTH/ Math.min(link.source.radiusVar, link.target.radiusVar)
     }))
-    .force("x", d3.forceX(getForceX).strength((d) => getXYStrength(d) * xWeight))
-    .force("y", d3.forceY(getForceY).strength((d) => getXYStrength(d) * yWeight))
+    .force("x", d3.forceX(width/2).strength((d) => config.graphDataType !== "parameter"  ? xWeight * 0.04 : getXYStrength(d) * xWeight))
+    .force("y", d3.forceY(height/2).strength((d) => config.graphDataType !== "parameter"  ? yWeight * 0.04 :getXYStrength(d) * yWeight))
     .force("collide", d3.forceCollide() // change segment when ready
-      .radius((d) => Math.min(d.radius * RADIUS_COLLIDE_MULTIPLIER, RADIUS_COLLIDE_MAX))
+      .radius((d) => config.graphDataType !== "parameter" ? d.radius * 4 : Math.min(d.radius * RADIUS_COLLIDE_MULTIPLIER, RADIUS_COLLIDE_MAX))
       .strength(0.8)
+      .iterations(config.graphDataType === "parameter" ? 1 : 3)
     ) // change segment when ready
     .force("cluster", forceCluster()) // cluster all nodes belonging to the same submodule.
     // change segment when ready
-    .force("charge", d3.forceManyBody().strength((d) => config.graphDataType !== "parameter" && d.type === "tier3" ? -25 : -250));
+    .force("charge", d3.forceManyBody().strength((d) => config.graphDataType !== "parameter"  ? 0 : -250));
 
   simulation.stop();
 
@@ -267,7 +273,8 @@ export default async function ForceGraph(
 
   // node visibility can depend on zoom level
   const getNodeLabelDisplay = (d) => {
-    if((config.graphDataType !== "parameter" && d.type !== "tier3") || config.currentLayout === "shortestPath") return "block";
+    if(config.graphDataType !== "parameter") return "block";
+   // if((config.graphDataType !== "parameter" && d.type !== "tier3") || config.currentLayout === "shortestPath") return "block";
     if(config.currentLayout === "nearestNeighbour") return "block";
     if(config.currentLayout === "default" && !expandedAll) {
       return config.selectedNodeNames.includes(d.id) ? "block" : "none";
@@ -277,7 +284,8 @@ export default async function ForceGraph(
 
 
   function getNodeLabelDy  (d)  {
-    if(config.graphDataType !== "parameter"  && d.type === "tier1") return d.radius + remToPx(currentZoomLevel);
+    if(config.graphDataType !== "parameter") return d.radius * 1.8;
+  //  if(config.graphDataType !== "parameter"  && d.type === "tier1") return d.radius + remToPx(currentZoomLevel);
     if(config.graphDataType !== "parameter") return d.radius + remToPx(0.6/currentZoomLevel);
     if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return d.radius + remToPx(0.4);
     if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return d.radius + remToPx(0.6);
@@ -285,11 +293,11 @@ export default async function ForceGraph(
     return d.radius + remToPx(0.5);
   }
   function getNodeLabelSize (d)  {
-    if(config.graphDataType !== "parameter" && d.type === "tier1") return `${currentZoomLevel}em`;
-    if(config.graphDataType !== "parameter") return `${0.6/currentZoomLevel}em`;
-    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return "0.4rem";
-    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return "0.6rem";
-    return "0.4rem"
+    if(config.graphDataType !== "parameter")return d.radius * 0.8;
+    if(config.graphDataType !== "parameter") return `${(LABEL_FONT_BASE_REM + 0.2)/currentZoomLevel}em`;
+    if(config.currentLayout === "nearestNeighbour" && d.id === config.nearestNeighbourOrigin) return `${LABEL_FONT_BASE_REM}rem`
+    if(config.graphDataType === "parameter" && config.currentLayout === "default" && config.nearestNeighbourOrigin !== "") return `${LABEL_FONT_BASE_REM + 0.2}rem`;
+    return `${LABEL_FONT_BASE_REM}rem`
   }
 
   const zoom = d3
@@ -760,7 +768,7 @@ export default async function ForceGraph(
 
 
   // Update coordinates of all nodes + links based on current config settings
-  function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick) {
+  function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick, afterDrag) {
 
     // redraw tree if needed
     if(config.graphDataType === "parameter" && config.currentLayout === "default"){
@@ -853,62 +861,28 @@ export default async function ForceGraph(
          chartNodes.some((s) => s.NAME === getTargetId(f)));
     }
 
-    if(config.graphDataType !== "parameter"){
-      // different behaviour for submodule/segment ie macro/meso
-      const reRunSimulation = (parameterString = "") => {
-        chartNodes = showEle.nodes;
-        // find links for all visible nodes
-        chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
-          if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
-            if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
-              acc.push({
-                source: link.source,
-                target: link.target,
-                direction: link.direction,
-                index
-              })
-          }
-          return acc;
-        },[])
-        // re-run simulation
-        simulation.nodes([]).force("link").links([])
-        simulation.nodes(showEle.nodes).force("link").links(chartLinks);
-        simulation.alphaTarget(0.1).restart();
-        // stop at calculated tick time (from previous dev)
-        simulation.tick(SIMULATION_TICK_TIME);
-        // fixing nodes the next data change
-        showEle.nodes.map((m) => {
-          m.fx = m.x;
-          m.fy = m.y;
-        })
-
-        // reset urlString if needed
-        let urlString = `${windowBaseUrl}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
-        config.expandedMacroMesoNodes.forEach((nodeId) => {
-          urlString += `${getUrlId(nodeId)}_`
-        })
-        let newUrlString = "";
-        if(window.location.href.includes("?view")){
-          // don't change
+    if(config.graphDataType !== "parameter" && !afterDrag) {
+      // reset urlString if needed
+      let urlString = `${windowBaseUrl}?${config.graphDataType === "submodule" ? "QV" : "MV"}=`;
+      config.expandedMacroMesoNodes.forEach((nodeId) => {
+        urlString += `${getUrlId(nodeId)}_`
+      })
+      let newUrlString = "";
+      if (window.location.href.includes("?view")) {
+        // don't change
+      } else {
+        if (!(urlString.split("?")[1] === "QV=" || urlString === "MV=")) {
+          newUrlString = windowBaseUrl;
         } else {
-          if(!(urlString.split("?")[1] === "QV=" || urlString === "MV=")){
-            if(parameterString === ""){
-              newUrlString = windowBaseUrl;
-            } else {
-              const urlStart = urlString.split("?")[0];
-              newUrlString = `${urlStart}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${parameterString}`
-            }
-          } else {
-            // clearing URL string if nothing expanded
-            newUrlString =  windowBaseUrl;
-          }
+          // clearing URL string if nothing expanded
+          newUrlString = windowBaseUrl;
         }
-        history.replaceState(null, '', newUrlString);
       }
+      history.replaceState(null, '', newUrlString);
+
       // stop simulation
       simulation.stop();
-      // initial re-run
-      reRunSimulation();
+
       const {segmentNames, subModuleNames, subModuleNodes} = config.hierarchyData;
       // next section will only apply if macroMesoUrlExtras (populated on load in main.js) has entries
       // for each entry a simulation re-run is performed - seems illogical but this feature was
@@ -924,7 +898,6 @@ export default async function ForceGraph(
         if(submoduleNode){
           // simulate a click and re-run simulation
           clickMacroMeso(submoduleNode);
-          reRunSimulation();
         }
       })
       // find segments
@@ -936,7 +909,6 @@ export default async function ForceGraph(
         if(segmentNode){
           // simulate a click and re-run simulation
           clickMacroMeso(segmentNode);
-          reRunSimulation();
         }
       })
       const clickParameter = (parameterNode, updateUrl) => {
@@ -978,9 +950,29 @@ export default async function ForceGraph(
               clickSegment(segmentNode)
             }
           }
-          reRunSimulation(`_${parameterClickId}`);
         }
       }
+    chartNodes = showEle.nodes;
+    // find links for all visible nodes
+    chartLinks = config.hierarchyData.allLinks.reduce((acc, link, index) => {
+      if(showEle.nodes.some((s) => s.id === link.source) && showEle.nodes.some((s) => s.id === link.target)){
+        if(!acc.some((s) => (s.source === link.source && s.target === link.target) || (s.source === link.target && s.target === link.source)))
+          acc.push({
+            source: link.source,
+            target: link.target,
+            direction: link.direction,
+            index
+          })
+      }
+      return acc;
+    },[])
+    // re-run simulation
+    simulation.nodes([]).force("link").links([])
+    simulation.nodes(showEle.nodes).force("link").links(chartLinks);
+    simulation.alphaTarget(1).restart();
+    // stop at calculated tick time (from previous dev)
+    simulation.tick(1200);
+    simulation.stop();
       // after all that, reset setQuildMesoUrlExtras
       config.setMacroMesoUrlExtras([]);
     }
@@ -1073,36 +1065,34 @@ export default async function ForceGraph(
     }
 
     const dragged = (event, node) => {
+      console.log('dragging',node.x, event.x)
       // resetting data for affected nodes only rather than running updatePositions again
       // because render time was so much faster
       // reset node data
-      node.x = event.x;
-      node.y = event.y;
       // filter and position nodes
-      d3.selectAll(".nodesGroup")
+      svg.selectAll(".nodesGroup")
         .filter((f) => f.id === node.id)
         .attr("transform",  `translate(${event.x},${event.y})`);
 
       // reset link data
-      d3.selectAll(".linksGroup")
+     svg.selectAll(".linksGroup")
         .filter((f) => f.source.id === node.id || f.target.id === node.id)
-        .each((d) => {
-          if(d.source.id === node.id){
-            d.source.x = event.x;
-            d.source.y = event.y;
-          } else {
-            d.target.x = event.x;
-            d.target.y = event.y;
-          }
+        .each((d,i,objects) => {
+          const source = d.source.id === node.id ? {x: event.x, y: event.y} : d.source;
+          const target = d.source.id === node.id ?   d.target : {x: event.x, y: event.y};
+          const linkObject = d3.select(objects[i]);
+          linkObject.select(".linkPathForArrows")
+            .attr("d",  `M${source.x},${source.y},L${target.x},${target.y}`);
+          linkObject.select(".linkPath")
+            .attr("d", getLinkPath)
         })
+    }
 
-      // filter and position links
-      d3.selectAll(".linkPathForArrows")
-        .filter((f) => f.source.id === node.id || f.target.id === node.id)
-        .attr("d", (d) => `M${d.source.x},${d.source.y},L${d.target.x},${d.target.y}`)
+    const dragended = (event, node) => {
+      console.log('ending',node.x, event.x)
 
-        d3.selectAll(".linkPath")
-        .attr("d", getLinkPath);
+      node.x = event.x;
+          node.y = event.y;
     }
 
     function macroOrMesoHighlight  (d)  {
@@ -1162,9 +1152,7 @@ export default async function ForceGraph(
         return {
           id: descendant.data.id,
           name: descendant.data.NAME,
-          radius: nodeRadiusScale(
-            descendant.children ? descendant.leaves().length : 0
-          ),
+          radius: nodeRadiusScale(descendant.data.linkCount),
           color: matchingSubModule.fill,
           startPosition: matchingSubModule ? [matchingSubModule.x,matchingSubModule.y] : undefined,
           children: descendant.children
@@ -1190,13 +1178,6 @@ export default async function ForceGraph(
         config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id));
         showEle.nodes = showEle.nodes.filter((f) => f.id !== d.id);
       }
-      showEle.nodes.map((m) => {
-        if(m.type !== "tier3"){
-          // unfixing nodes for new draw (except parameters - ie tier3 - which always stay in place so they don't lose cluster look)
-          m.fx = undefined;
-          m.fy = undefined;
-        }
-      })
     }
 
     const isNormalClick = (event) =>
@@ -1216,8 +1197,6 @@ export default async function ForceGraph(
       });
 
     nodesGroup.attr("transform", (d) => `translate(${d.x},${d.y})`)
-      .call(d3.drag()
-        .on("drag", dragged))
       .on("mouseover",(event,d) => {
         tooltip.style("visibility", "hidden");
         if(config.graphDataType !== "parameter"){
@@ -1278,7 +1257,6 @@ export default async function ForceGraph(
        }
       })
       .on("click", (event, d) => {
-        tooltip.style("visibility", "hidden");
         if (event.defaultPrevented) return; // dragged
         if(config.currentLayout === "default" && config.graphDataType === "parameter"){
           // default click (NN 1 search but staying in this layout)
@@ -1353,6 +1331,11 @@ export default async function ForceGraph(
       .attr("stroke", "white")
       .attr("stroke-width", (d) =>   getNodeStrokeElements("width",d))
       .attr("stroke-opacity", (d) =>  getNodeStrokeElements("opacity",d))
+
+    svg.selectAll(".nodesGroup")
+      .call(d3.drag()
+        .on("drag", dragged)
+        .on("end",dragended));
 
     const pulseNNCircle = () => {
       // node animation for NN origin
@@ -1442,7 +1425,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.radiusVar) ** 6;
+      let k = nodeRadiusScale(d.radiusVar) ** 2;
       x += d.x * k
       y += d.y * k;
       z += k;
@@ -1452,18 +1435,42 @@ export default async function ForceGraph(
 
 
   function forceCluster() {
-    const tier3Strength = config.graphDataType !== "parameter" ? 0.5 : PARAMETER_CLUSTER_STRENGTH;
+    const strength = config.graphDataType !== "parameter" ? 0.4 : PARAMETER_CLUSTER_STRENGTH;
+    const parentStrength = 0.02;
     let nodes;
     function force(alpha) {
 
-        const centroids = d3.rollup(nodes, centroid, (r) => config.graphDataType === "parameter" ?   r.subModule : r.group);
+       if(config.graphDataType === "parameter"){
+         const centroids = d3.rollup(nodes, centroid, (r) =>   r.subModule );
+         for (const d of nodes) {
+           const l = alpha * strength;
+           const { x: cx, y: cy } = centroids.get(d.subModule);
+           d.vx -= (d.x - cx) * l;
+           d.vy -= (d.y - cy) * l;
+         }
+       } else {
+         // Calculate centroids for each group
+         const groupCentroids = d3.rollup(nodes, centroid, (r) => r.group);
 
-        for (const d of nodes) {
-          const l = alpha * (d.type === "tier3" ? tier3Strength : 0)
-          const { x: cx, y: cy } = centroids.get(config.graphDataType === "parameter" ?  d.subModule : d.group );
-          d.vx -= (d.x - cx) * l;
-          d.vy -= (d.y - cy) * l;
-        }
+         // Calculate centroids for each parent group
+         const parentCentroids = d3.rollup(nodes, centroid, (r) => r.subModule);
+
+         for (const d of nodes) {
+           const l = alpha * strength;
+           const pl = alpha * parentStrength;
+
+           // Force toward group centroid (strong)
+           const { x: cx, y: cy } = groupCentroids.get(d.group);
+           d.vx -= (d.x - cx) * l;
+           d.vy -= (d.y - cy) * l;
+
+           // Force toward parent group centroid (weak)
+           const { x: pcx, y: pcy } = parentCentroids.get(d.subModule);
+           d.vx -= (d.x - pcx) * pl;
+           d.vy -= (d.y - pcy) * pl;
+         }
+       }
+
 
     }
     force.initialize = (_) => (nodes = _);
@@ -1674,7 +1681,7 @@ export default async function ForceGraph(
     context.font = `${fontSize}px Arial`;
     return context.measureText(text).width;
   }
-  const showTooltipExtra = (x, y,textContent, centreContent = true) => {
+  function showTooltipExtra  (x, y,textContent, centreContent = true) {
     let tooltipLeft = x + 10;
     let tooltipTop = y;
     if(centreContent){
@@ -1902,11 +1909,26 @@ export default async function ForceGraph(
         buttonPanel.classList.add('active');
       })
 
+    const sliderRem = document.getElementById('labelFontSizeRem');
+    const displayRem = document.getElementById('valueDisplayLabelFontSizeRem');
+
+
+    sliderRem.value = config.labelRem || 0.4;
+    displayRem.textContent = config.labelRem || 0.4;
+
+    sliderRem.addEventListener('input', (e) => {
+      const value = e.target.value;
+      displayRem.textContent = value;
+      config.setLabelRem(+value);
+    });
+
+
     const sliderRMin = document.getElementById('sliderRMin');
     const displayRMin = document.getElementById('valueDisplayRMin');
 
-    sliderRMin.value = config.radiusMin;
-    displayRMin.textContent = config.radiusMin;
+
+    sliderRMin.value = config.radiusMin || 1;
+    displayRMin.textContent = config.radiusMin || 1;
 
     sliderRMin.addEventListener('input', (e) => {
       const value = e.target.value;
@@ -1979,24 +2001,6 @@ export default async function ForceGraph(
       config.setParameterClusterStrength(+value);
     });
 
-    const colorSelect = document.getElementById('paletteSelect');
-
-    colorSelect.addEventListener('change', (event) => {
-      const selectedPalette = event.target.value;
-      config.setColorRange(selectedPalette);
-      subModulePositions.forEach((f, i) => {
-        f.fill = config.colorRange[i];
-      })
-      showEle.nodes.forEach((node) => {
-        const subModule = node.subModule ? node.subModule : node.data.subModule;
-        const matchingSubmodule = subModulePositions.find((f) => f.name === subModule);
-        if(!matchingSubmodule){
-          console.error('PROBLEM WITH MATCHING SUBMODULE - should not happen!!!!')
-        }
-        node.color = matchingSubmodule.fill;
-        svg.selectAll(".nodeCircle").attr("fill", (d) =>  d.color );
-      })
-    });
 
     // update submodule Positions fill
     // update color.
