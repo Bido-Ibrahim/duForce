@@ -135,6 +135,7 @@ export default async function ForceGraph(
     return acc;
   }, [])
 
+
   // select or define non data-appended elements
   let baseSvg = d3.select(containerSelector).select("svg");
   let tooltip = d3.select(".tooltip");
@@ -190,7 +191,7 @@ export default async function ForceGraph(
         return 0
       } // default from https://d3js.org/d3-force/link as distance doesn't matter here
      // return 0
-      return LINK_FORCE_STRENGTH/ Math.min(link.source.radiusVar, link.target.radiusVar)
+      return LINK_FORCE_STRENGTH/ Math.min(link.source.radius, link.target.radius)
     }))
     .force("x", d3.forceX(width/2).strength((d) => config.graphDataType !== "parameter"  ? xWeight * 0.04 : getXYStrength(d) * xWeight))
     .force("y", d3.forceY(height/2).strength((d) => config.graphDataType !== "parameter"  ? yWeight * 0.04 :getXYStrength(d) * yWeight))
@@ -981,7 +982,7 @@ export default async function ForceGraph(
     // filter out single if requested
     if(!config.showSingleNodes && config.currentLayout === "default"){
       if(config.graphDataType === "parameter"){
-        chartNodes = chartNodes.filter((f) => f.radiusVar > 0);
+        chartNodes = chartNodes.filter((f) => f.allLinksCount > 0);
       } else {
         // macro or meso
         chartNodes = chartNodes.filter((f) => f.type !== "tier3" || (f.type === "tier3" && chartLinks.some((s) =>
@@ -1425,7 +1426,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = nodeRadiusScale(d.radiusVar) ** 2;
+      let k = d.radius ** 2;
       x += d.x * k
       y += d.y * k;
       z += k;

@@ -47,7 +47,8 @@ const generateParameterData = (dataNodes, dataLinks) => {
     node.segment = `segment-${node.SEGMENT}`;
     const sourceLinks = links.filter((f) => f.source === node.id).length;
     const targetLinks = links.filter((f) => f.target === node.id).length;
-    node.linkCount = sourceLinks + targetLinks;
+    node.allLinksCount = sourceLinks + targetLinks;
+    node.linkCount = sourceLinks;
     acc.push(node);
     return acc;
   }, [])
