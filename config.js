@@ -31,7 +31,7 @@ export const config = {
   currentTreeData: {}, // current tree expansion status
   tier1And2Mapper: {},// used when collapsing/expanding tree
   // set after initial default load
-  defaultNodePositions:[],
+  defaultNodePositions:{"withParameters":[],"withoutParameters":[]},
   // arrays used for selected nodes (notDefault for NN + SP layouts)
   selectedNodeNames: [],
   notDefaultSelectedNodeNames: [],
@@ -47,6 +47,22 @@ export const config = {
   parameterClusterStrength: PARAMETER_CLUSTER_STRENGTH,
   simulationTickTime: SIMULATION_TICK_TIME,
   labelRem: LABEL_FONT_BASE_REM,
+  showParameters: false,
+  clickedMMVariable: "",
+  setMMClickedVariable(newString) {
+    if (typeof newString === "string") {
+      this.clickedMMVariable = newString;
+    } else {
+      console.error("Expected a string for clickedMMVariable.");
+    }
+  },
+  setShowParameters(newBoolean) {
+    if (typeof newBoolean === "boolean") {
+      this.showParameters = newBoolean;
+    } else {
+      console.error("Expected a boolean for showParameters.");
+    }
+  },
   setLabelRem(newNumber) {
     if (typeof newNumber === "number") {
       this.labelRem = newNumber;

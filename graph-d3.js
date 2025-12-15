@@ -98,6 +98,7 @@ export default async function ForceGraph(
   const SIMULATION_TICK_TIME = config.simulationTickTime;
   const LABEL_FONT_BASE_REM = config.labelRem;
   let PARAMETER_CLUSTER_STRENGTH = config.parameterClusterStrength;
+  const parameterStatus =  config.showParameters ? "withParameters":"withoutParameters";
 
   if (!nodes) return;
   const windowBaseUrl = window.location.href.split("?")[0];
@@ -105,7 +106,6 @@ export default async function ForceGraph(
   let expandedAll = config.graphDataType !== "parameter" || nodes.length === config.selectedNodeNames.length;
   // data for charts
   const showEle = { nodes, links};
-
 
   // set scales
   const radiusMax = config.graphDataType === "parameter" ?
@@ -117,7 +117,24 @@ export default async function ForceGraph(
     .domain([0, radiusMax])
     .range(config.graphDataType === "parameter" ? NODE_RADIUS_RANGE : NODE_RADIUS_RANGE_MACRO_MESO)
     .clamp(true);
-
+  if(!config.showParameters && config.graphDataType === "parameter"){
+    showEle.nodes = showEle.nodes.reduce((acc, entry) => {
+      const newEntry = Object.assign({}, entry);
+      if(newEntry.isParameter){
+        acc.push(newEntry);
+      }
+      return acc;
+    },[]);
+    showEle.links = showEle.links.reduce((acc,entry) => {
+      const newEntry = Object.assign({}, entry);
+      const source = getSourceId(entry);
+      const target = getTargetId(entry);
+      if(showEle.nodes.some((s) => s.id === source) && showEle.nodes.some((s) => s.id === target)){
+        acc.push(newEntry);
+      }
+      return acc;
+    },[])
+  }
   // add additional node variables
   showEle.nodes = showEle.nodes.reduce((acc, node) => {
     const subModule = node.subModule ? node.subModule : node.data.subModule;
@@ -173,15 +190,6 @@ export default async function ForceGraph(
     if(d.type === "tier1") return 0.3;
     if(d.type === "tier2") return 0.6;
     if(d.type === "tier3") return 0.05;
-  }
-  const getForceX = (d) => {
-    if(config.graphDataType === "parameter") return width/2;
-    return d.startPosition ? d.startPosition[0] : (d.x ? d.x : 0)
-  }
-
-  const getForceY = (d) => {
-    if(config.graphDataType === "parameter") return height/2;
-    return d.startPosition ? d.startPosition[1] : (d.y ? d.y : 0)
   }
   // Initialize simulation
   const simulation = d3
@@ -364,11 +372,16 @@ export default async function ForceGraph(
   };
   const resetDefaultNodes = () => {
     // uses positions recorded from initial default build to reset the positions
-    const previousPositions = config.defaultNodePositions;
+    const previousPositions = config.defaultNodePositions[parameterStatus];
     showEle.nodes.map((m) => {
       const previousNode = previousPositions[m.id];
       m.x = previousNode.x;
       m.y = previousNode.y;
+    })
+
+    showEle.links.map((m) => {
+      m.source = getSourceId(m);
+      m.target = getTargetId(m);
     })
   }
   // radio buttons on toolbar if NN
@@ -389,10 +402,15 @@ export default async function ForceGraph(
       })
   }
 
-
-  if (!initial && !(config.currentLayout === "default" && config.defaultNodePositions.length === 0)) {
+  if (!initial && !(config.currentLayout === "default" && config.defaultNodePositions[parameterStatus].length === 0)) {
     if (config.currentLayout === "default") {
       resetDefaultNodes();
+      simulation.nodes([]).force("link").links([]);
+      simulation.nodes(showEle.nodes).force("link").links(showEle.links);
+      simulation.alphaTarget(0.1).restart();
+      simulation.tick(1);
+      simulation.stop();
+
     }
     updatePositions(true);
   } else {
@@ -411,7 +429,9 @@ export default async function ForceGraph(
         acc[node.id] = { x: node.x, y: node.y };
         return acc
       }, {})
-      config.setDefaultNodePositions(defaultNodePositions)
+      const currentNodePositions = config.defaultNodePositions;
+      currentNodePositions[parameterStatus] = defaultNodePositions;
+      config.setDefaultNodePositions(currentNodePositions)
     }
     updatePositions(true );
   }
@@ -767,6 +787,45 @@ export default async function ForceGraph(
   }
 
 
+  function selectSpatiallyEvenLinks (links, nodes, subsetSize) {
+    const gridSize = 10;
+    // Create a map for quick node lookup
+    const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+
+    // Group links into spatial buckets based on source node position
+    const grid = new Map();
+
+    links.forEach((link) => {
+      const sourceNode = nodeMap.get(link.source.id);
+      if (!sourceNode) return;
+
+      // Determine grid cell (bucket) based on node position
+      const cellX = Math.floor(sourceNode.x / gridSize);
+      const cellY = Math.floor(sourceNode.y / gridSize);
+      const key = `${cellX},${cellY}`;
+
+      if (!grid.has(key)) {
+        grid.set(key, []);
+      }
+      grid.get(key).push(link);
+    });
+
+    // Select links from each spatial bucket
+    const selectedLinks = [];
+    const bucketKeys = Array.from(grid.keys());
+
+    while (selectedLinks.length < subsetSize && bucketKeys.length > 0) {
+      for (const key of bucketKeys) {
+        const bucket = grid.get(key);
+        if (bucket.length > 0) {
+          selectedLinks.push(bucket.pop()); // Take one link from the bucket
+        }
+        if (selectedLinks.length >= subsetSize) break;
+      }
+    }
+
+    return selectedLinks;
+  }
 
   // Update coordinates of all nodes + links based on current config settings
   function updatePositions(zoomToBounds, fromNearestNeighbourDefaultNodeClick, afterDrag) {
@@ -860,6 +919,8 @@ export default async function ForceGraph(
        chartLinks = showEle.links.filter((f) =>
          chartNodes.some((s) => s.NAME === getSourceId(f)) &&
          chartNodes.some((s) => s.NAME === getTargetId(f)));
+    } else if (config.graphDataType === "parameter" && chartLinks.length > 4000){
+      chartLinks = selectSpatiallyEvenLinks(showEle.links,chartNodes,2000);
     }
 
     if(config.graphDataType !== "parameter" && !afterDrag) {
@@ -868,15 +929,22 @@ export default async function ForceGraph(
       config.expandedMacroMesoNodes.forEach((nodeId) => {
         urlString += `${getUrlId(nodeId)}_`
       })
+      config.macroMesoUrlExtras.forEach((nodeId) => {
+        if(!config.expandedMacroMesoNodes.some((s) => s === nodeId)){
+          urlString += `${getUrlId(nodeId)}_`
+        }
+      })
+
       let newUrlString = "";
       if (window.location.href.includes("?view")) {
         // don't change
       } else {
-        if (!(urlString.split("?")[1] === "QV=" || urlString === "MV=")) {
-          newUrlString = windowBaseUrl;
-        } else {
+        if (urlString.split("?")[1] === "QV=" || urlString === "MV=") {
           // clearing URL string if nothing expanded
           newUrlString = windowBaseUrl;
+        } else {
+          // resetting URL string
+          newUrlString = urlString;
         }
       }
       history.replaceState(null, '', newUrlString);
@@ -912,14 +980,16 @@ export default async function ForceGraph(
           clickMacroMeso(segmentNode);
         }
       })
+      config.setMMClickedVariable("");
       const clickParameter = (parameterNode, updateUrl) => {
         if(!parameterNode) return;
         // if node exist - 'click it' and reset url string
         parameterNode.clicked = true;
-        if(updateUrl){
-          let urlString = `${window.location.href}_${getUrlId(parameterClickId)}`;
-          history.replaceState(null, '', urlString);
-        }
+        config.setMMClickedVariable(parameterNode.id);
+        //if(updateUrl){
+        //  let urlString = `${window.location.href}_${getUrlId(parameterClickId)}`;
+        //  history.replaceState(null, '', urlString);
+        //}
       }
 
       const clickSegment = (segmentNode) => {
@@ -967,6 +1037,7 @@ export default async function ForceGraph(
       }
       return acc;
     },[])
+      console.log('macro meso simulation')
     // re-run simulation
     simulation.nodes([]).force("link").links([])
     simulation.nodes(showEle.nodes).force("link").links(chartLinks);
@@ -1002,8 +1073,9 @@ export default async function ForceGraph(
 
 
     const getLinkAlpha = (link, linkLength) => {
-
-      const linkOpacity = linkLength > 100 ? 0.3 : 0.6;
+      if(linkLength < 100) return 0.9;
+      if(linkLength <= 2000 ) return 0.75;
+      const linkOpacity =  0.5;
       if(expandedAll || config.currentLayout !== "default" || config.graphDataType !== "parameter") return linkOpacity;
       if(checkLinkSelected(link)) return linkOpacity;
       return 0.1;
@@ -1184,7 +1256,7 @@ export default async function ForceGraph(
     const isNormalClick = (event) =>
       !(event.shiftKey || event.altKey || event.ctrlKey || event.metaKey);
 
-
+    console.log('rendering nodes')
     // append chartNodes to nodesGroup and define attributes
     const nodesGroup = svg.select(".nodeGroup")
       .selectAll(".nodesGroup")
@@ -1268,6 +1340,7 @@ export default async function ForceGraph(
         // do nothing on click if NN or SP layout
         // add segment when ready
         if(config.graphDataType !== "parameter"){
+          d3.select(`#search-input`).node().value = "";
           d3.select(".tooltipExtra").style("visibility","hidden");
           allNodeMouseout();
           if (isNormalClick(event)) {
@@ -1282,15 +1355,18 @@ export default async function ForceGraph(
               if(d.clicked){
                 // if clicked - reset so not clicked and remove from expandedMacroMesoNodes list
                 d.clicked = false;
+                config.setMMClickedVariable("");
                 config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.filter((f) => f !==d.id))
               } else {
                 // if not clicked - highlight, show label, click, add to expandedMacroMesoNodes list + Url string
                 macroOrMesoHighlight(d);
                 d3.selectAll(".nodeLabel").style("display", (l) => l.id === d.id ? "block" : getNodeLabelDisplay(l))
                 d.clicked = true;
+                config.setMMClickedVariable(d.id);
                 config.setExpandedMacroMesoNodes(config.expandedMacroMesoNodes.concat(d.id))
                 let urlString = `${windowBaseUrl}?${config.graphDataType === "submodule" ? "QV" : "MV"}=${getUrlId(d.id)}`;
                 history.replaceState(null, '', urlString);
+                d3.select(`#search-input`).node().value = d.id;
               }
             }
           } else if (d.type === "tier3") {
@@ -1426,7 +1502,7 @@ export default async function ForceGraph(
     let y = 0;
     let z = 0;
     for (const d of nodes) {
-      let k = d.radius ** 2;
+      let k = d.radius ** 4;
       x += d.x * k
       y += d.y * k;
       z += k;
@@ -1436,7 +1512,7 @@ export default async function ForceGraph(
 
 
   function forceCluster() {
-    const strength = config.graphDataType !== "parameter" ? 0.4 : PARAMETER_CLUSTER_STRENGTH;
+    const strength = config.graphDataType !== "parameter" ? 0.35 : PARAMETER_CLUSTER_STRENGTH;
     const parentStrength = 0.02;
     let nodes;
     function force(alpha) {
@@ -1813,7 +1889,6 @@ export default async function ForceGraph(
               resetMenuVisibility();
               drawTree();
             }, 0); // or 16 for ~1 frame delay at 60fps
-
           } else if (config.currentLayout === "nearestNeighbour"){
             config.setNearestNeighbourOrigin("");
             config.setNotDefaultSelectedLinks([]);
@@ -1822,6 +1897,7 @@ export default async function ForceGraph(
             d3.select("#search-input-sp-end").property("value","");
             d3.select("#infoMessage").text(MESSAGES.NN);
             config.setNotDefaultSelectedNodeNames([]);
+
           } else if (config.currentLayout === "shortestPath"){
             config.setShortestPathStart("");
             config.setShortestPathEnd("");
@@ -1830,10 +1906,10 @@ export default async function ForceGraph(
             d3.select("#infoMessage").text(MESSAGES.SP);
             config.setNotDefaultSelectedNodeNames([]);
           }
-          updatePositions(false,false);
         } else {
           location.reload();
         }
+        updatePositions(false,false);
       });
 
     const unselectButton =  d3.select("#unselectAll");
@@ -1913,94 +1989,109 @@ export default async function ForceGraph(
     const sliderRem = document.getElementById('labelFontSizeRem');
     const displayRem = document.getElementById('valueDisplayLabelFontSizeRem');
 
+    if(sliderRem && config.labelRem){
+      sliderRem.value = config.labelRem ;
+      displayRem.textContent = config.labelRem;
 
-    sliderRem.value = config.labelRem || 0.4;
-    displayRem.textContent = config.labelRem || 0.4;
+      sliderRem.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayRem.textContent = value;
+        config.setLabelRem(+value);
+      });
+    }
 
-    sliderRem.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayRem.textContent = value;
-      config.setLabelRem(+value);
-    });
+
 
 
     const sliderRMin = document.getElementById('sliderRMin');
     const displayRMin = document.getElementById('valueDisplayRMin');
 
+    if(sliderRMin && config.radiusMin){
+      sliderRMin.value = config.radiusMin || 1;
+      displayRMin.textContent = config.radiusMin || 1;
 
-    sliderRMin.value = config.radiusMin || 1;
-    displayRMin.textContent = config.radiusMin || 1;
+      sliderRMin.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayRMin.textContent = value;
+        config.setRadiusMin(+value);
+        if(config.graphDataType === "parameter"){
+          nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
+          showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
+        }
+      });
+    }
 
-    sliderRMin.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayRMin.textContent = value;
-      config.setRadiusMin(+value);
-      if(config.graphDataType === "parameter"){
-        nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
-        showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
-      }
-    });
+
 
     const sliderRMax = document.getElementById('sliderRMax');
     const displayRMax = document.getElementById('valueDisplayRMax');
-    sliderRMax.value = config.radiusMax;
-    displayRMax.textContent = config.radiusMax;
 
-    sliderRMax.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayRMax.textContent = value;
-      config.setRadiusMax(+value);
-      if(config.graphDataType === "parameter"){
-        nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
-        showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
-      }
-    });
+    if(sliderRMax && config.radiusMax){
+      sliderRMax.value = config.radiusMax;
+      displayRMax.textContent = config.radiusMax;
+
+      sliderRMax.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayRMax.textContent = value;
+        config.setRadiusMax(+value);
+        if(config.graphDataType === "parameter"){
+          nodeRadiusScale.range([config.radiusMin,config.radiusMax]);
+          showEle.nodes.map((m) => m.radius = nodeRadiusScale(m.radiusVar))
+        }
+      });
+    }
+
 
     const sliderRMultiplier = document.getElementById('sliderRMultiplier');
     const displayRMultiplier = document.getElementById('valueDisplayRMultiplier');
-    sliderRMultiplier.value = config.radiusCollideMultiplier;
-    displayRMultiplier.textContent = config.radiusCollideMultiplier;
+    if(sliderRMultiplier ** config.radiusCollideMultiplier){
+      sliderRMultiplier.value = config.radiusCollideMultiplier;
+      displayRMultiplier.textContent = config.radiusCollideMultiplier;
 
-    sliderRMultiplier.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayRMultiplier.textContent = value;
-      config.setRadiusCollideMultiplier(+value);
-    });
+      sliderRMultiplier.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayRMultiplier.textContent = value;
+        config.setRadiusCollideMultiplier(+value);
+      });
 
-    const sliderLinkStrength = document.getElementById('sliderLinkStrength');
-    const displayLinkStrength = document.getElementById('valueDisplayLinkStrength');
-    sliderLinkStrength.value = config.linkForceStrength;
-    displayLinkStrength.textContent = config.linkForceStrength;
+      const sliderLinkStrength = document.getElementById('sliderLinkStrength');
+      const displayLinkStrength = document.getElementById('valueDisplayLinkStrength');
+      sliderLinkStrength.value = config.linkForceStrength;
+      displayLinkStrength.textContent = config.linkForceStrength;
 
-    sliderLinkStrength.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayLinkStrength.textContent = value;
-      config.setLinkForceStrength(+value);
+      sliderLinkStrength.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayLinkStrength.textContent = value;
+        config.setLinkForceStrength(+value);
 
-    });
+      });
+    }
+
 
     const sliderSimulationTickTime = document.getElementById('sliderSimulationTickTime');
     const displaySimulationTickTime = document.getElementById('valueDisplaySimulationTickTime');
     const sliderClusterStrength = document.getElementById('sliderClusterStrength');
     const displayClusterStrength = document.getElementById('valueDisplayClusterStrength');
 
-    sliderSimulationTickTime.value = config.simulationTickTime;
-    displaySimulationTickTime.textContent = config.simulationTickTime;
-    sliderClusterStrength.value = config.parameterClusterStrength;
-    displayClusterStrength.textContent = config.parameterClusterStrength;
+    if(sliderSimulationTickTime && sliderClusterStrength && config.simulationTickTime && config.parameterClusterStrength){
+      sliderSimulationTickTime.value = config.simulationTickTime;
+      displaySimulationTickTime.textContent = config.simulationTickTime;
+      sliderClusterStrength.value = config.parameterClusterStrength;
+      displayClusterStrength.textContent = config.parameterClusterStrength;
 
-    sliderSimulationTickTime.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displaySimulationTickTime.textContent = value;
-      config.setSimulationTickTime(+value);
-    });
+      sliderSimulationTickTime.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displaySimulationTickTime.textContent = value;
+        config.setSimulationTickTime(+value);
+      });
 
-    sliderClusterStrength.addEventListener('input', (e) => {
-      const value = e.target.value;
-      displayClusterStrength.textContent = value;
-      PARAMETER_CLUSTER_STRENGTH = +value;
-      config.setParameterClusterStrength(+value);
-    });
+      sliderClusterStrength.addEventListener('input', (e) => {
+        const value = e.target.value;
+        displayClusterStrength.textContent = value;
+        PARAMETER_CLUSTER_STRENGTH = +value;
+        config.setParameterClusterStrength(+value);
+      });
+    }
 
 
     // update submodule Positions fill
@@ -2093,10 +2184,13 @@ export default async function ForceGraph(
 
     // Listen for 'input' event to capture real-time changes
     degreeSlider.on("input", function() {
+      d3.select(".animation-container").style("display", "flex");
       config.setNearestNeighbourDegree(this.value);
       d3.select("#nnDegreeValue").html(this.value);
       if(config.nearestNeighbourOrigin !== ""){
-        positionNearestNeighbours(false);
+        setTimeout(() => {
+          positionNearestNeighbours(false);
+        }, 0); // or 16 for ~1 frame delay at 60fps
       }
     });
 

@@ -96,6 +96,17 @@ label {
     height: 0.8rem;
 }
 
+#parameterRadio{
+    display: flex;
+    padding: 0;
+    margin: -0.8rem 0 0 0; /* Pulls it up by 1rem */
+    width: 18rem;
+    font-size: 0.7rem;
+    height: 0.8rem;
+    justify-content: flex-end; /* Align content to the right */
+    align-items: flex-start; /* Align content to the top */
+}
+
 #directionToggle{
     display: flex;
     padding: 0;

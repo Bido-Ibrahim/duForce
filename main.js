@@ -48,7 +48,7 @@ const generateParameterData = (dataNodes, dataLinks) => {
     const sourceLinks = links.filter((f) => f.source === node.id).length;
     const targetLinks = links.filter((f) => f.target === node.id).length;
     node.allLinksCount = sourceLinks + targetLinks;
-    node.linkCount = sourceLinks;
+    node.linkCount = Math.sqrt((targetLinks + 1) * (sourceLinks + 1));
     acc.push(node);
     return acc;
   }, [])
@@ -125,20 +125,40 @@ const getHierarchy = (nodes) => {
     return acc;
   },[])
 
+  let parameterOnlyData = nodes
+    .filter((f) => f.isParameter)
+    .reduce((acc, node,i) => {
+    acc.push({
+      parent: `segment-${node.SEGMENT}`,
+      subModule: `submodule-${node.SUBMODULE}`,
+      id: node.id,
+      NAME: node.NAME,
+      type: "tier3",
+      linkCount: node.linkCount
+    })
+    return acc;
+  },[])
+
   data = data.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
+  parameterOnlyData = parameterOnlyData.sort((a,b) => d3.ascending(a.NAME.toLowerCase(), b.NAME.toLowerCase()));
   const stratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(data);
+  const parameterOnlyStratifyData = [ROOT].concat(SUBMODULES).concat(SEGMENTS).concat(parameterOnlyData);
 
-
-  return d3
+  return {treeData:d3
     .stratify()
     .id((d) => d.id)
     .parentId((d) => d.parent)(stratifyData)
     .eachBefore((d,i) => { // sort as previous
       d.data.hOrderPosition = i; // needed to keep correct order of tree menu
-    });
+    }),
+    parameterOnlyHierarchy: d3
+      .stratify()
+      .id((d) => d.id)
+      .parentId((d) => d.parent)(parameterOnlyStratifyData)
+  }
 }
 
-const setHierarchyData = (nodesCopy, resultEdges) => {
+const setHierarchyData = (nodesCopy, resultEdges,parameterOnlyHierarchy) => {
   const subModuleNames = new Set();
   const segmentNames = new Set();
   const allLinks = [];
@@ -191,7 +211,6 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
       m.subModule = m.data.subModule;
       if(m.depth === 1){
         m.data.parameterCount = d3.sum(m.children, (s) => s.children.length);
-
         subModuleNames.add(m.data.id);
         const oppositeIdAndDirection = getOppositeIds(m.leaves());
         const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
@@ -225,8 +244,7 @@ const setHierarchyData = (nodesCopy, resultEdges) => {
       } else if (m.depth === 3){
         const oppositeIdAndDirection = getOppositeIds(m.leaves());
         const oppositeIds = oppositeIdAndDirection.map((m) => m.id)
-          .filter((f) => !config.parameterData.nodes.some((s) => s.id === f && (s.segment === m.data.id || s.subModule === m.data.subModule)));
-        // parameter -> parameter
+         // parameter -> parameter
         const parameterLinks = [...oppositeIds].map(d => ({ source: m.data.id, target: d,direction: getDirection(d,oppositeIdAndDirection)}))
         allLinks.push(...parameterLinks)
       }
@@ -349,9 +367,10 @@ async function getData() {
     const resultNodes = await response1.json();
     const resultEdges = await response2.json();
 
-
+    const parameters = new Set();
     if (resultNodes && resultEdges) {
       let resultNodesTrunc = resultNodes.map((d) => {
+        parameters.add(d.IsParameter);
         return {
           NAME: d.NAME.replace(/ /g, "_"), // ensuring no spaces (removed in labels)
           DEFINITION: d.DEFINITION,
@@ -360,6 +379,7 @@ async function getData() {
           SEGMENT: d.SEGMENT, // MUST BE A UNIQUE ID
           SEGMENT_NAME: d["SEGMENT NAME"]  || d["SEGMENT_NAME"], // PREFERABLY A UNIQUE LABEL
           UNITS: d.UNITS,
+          isParameter: d.IsParameter === "Yes",
           "Parameter Explanation": d["Parameter Explanation"]
         };
       });
@@ -375,7 +395,7 @@ async function getData() {
       config.setAllNodeNames(selectedNodeNamesCopy);
 
       // get hierarchy from node names
-      const treeData = getHierarchy(resultNodesTrunc);
+      const {treeData, parameterOnlyHierarchy} = getHierarchy(resultNodesTrunc);
       // mapping submodules and segments to their child nodes (for tree selection)
       config.setTier1And2Mapper(treeData.descendants().filter((f) => f.data.type === "tier3").reduce((acc, entry) => {
         const {subModule, parent, NAME} = entry.data;
@@ -393,7 +413,7 @@ async function getData() {
       // copy hierarchy data
       const nodesCopy = treeData.copy();
       // set more config variables
-      setHierarchyData(nodesCopy, resultEdges);
+      setHierarchyData(nodesCopy, resultEdges,parameterOnlyHierarchy);
       // call the tree
       VariableTree(treeData);
     } else {
