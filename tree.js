@@ -436,11 +436,28 @@ export default function VariableTree(data) {
       svg.selectAll(".selectedCheckboxIcon").style("display",config.graphDataType === "parameter" ? "block" : "none")
       svg.selectAll(".selectedCheckboxIconPath")
         .attr("d", (d) => getSelectedPath(d.data.type === "tier3" ? [d.data.NAME] : config.tier1And2Mapper[d.data.id]))
+      if(currentLayout === "parameter"){
+        if(config.clickedMMVariable !== ""){
+          config.setNearestNeighbourOrigin(config.clickedMMVariable);
+          config.setMMClickedVariable("");
+        }
+      }
       setTimeout(() => {
         renderGraph(config.graphDataType !== "parameter");
       }, 0); // or 16 for ~1 frame delay at 60fps
 
     });
+
+  const showParameters = d3.select("#viewParams");
+
+  showParameters.on("change",(event) => {
+    d3.select(".animation-container").style("display", "flex");
+    const showParameters = event.target.checked;
+    config.setShowParameters(showParameters);
+    setTimeout(() => {
+      renderGraph(config.graphDataType !== "parameter");
+    }, 0); // or 16 for ~1 frame delay at 60fps
+  })
 
   // collapse expand button
   d3.select("#collapseExpandButton")
