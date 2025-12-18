@@ -117,10 +117,11 @@ export default async function ForceGraph(
     .domain([0, radiusMax])
     .range(config.graphDataType === "parameter" ? NODE_RADIUS_RANGE : NODE_RADIUS_RANGE_MACRO_MESO)
     .clamp(true);
+
   if(!config.showParameters && config.graphDataType === "parameter"){
     showEle.nodes = showEle.nodes.reduce((acc, entry) => {
       const newEntry = Object.assign({}, entry);
-      if(newEntry.isParameter){
+      if(!newEntry.isParameter){
         acc.push(newEntry);
       }
       return acc;
