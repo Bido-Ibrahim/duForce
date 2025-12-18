@@ -47,7 +47,7 @@ export const config = {
   parameterClusterStrength: PARAMETER_CLUSTER_STRENGTH,
   simulationTickTime: SIMULATION_TICK_TIME,
   labelRem: LABEL_FONT_BASE_REM,
-  showParameters: false,
+  showParameters: true,
   clickedMMVariable: "",
   setMMClickedVariable(newString) {
     if (typeof newString === "string") {
